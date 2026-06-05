@@ -1,3 +1,7 @@
+export * from './audio/constants.js';
+export * from './audio/frameUtils.js';
+export * from './audio/ingestor.js';
+export * from './audio/wavDecoder.js';
 export * from './models.js';
 export * from './session/sessionManager.js';
 export * from './utils/ids.js';
