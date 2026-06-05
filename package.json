@@ -1,0 +1,24 @@
+{
+  "name": "lingua-live",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @lingua-live/core && npm run build -w @lingua-live/app",
+    "dev": "npm run build -w @lingua-live/core && npm run dev -w @lingua-live/app",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint packages/core/src packages/app/src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "eslint": "^9.28.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.33.0",
+    "vitest": "^3.2.1"
+  }
+}
