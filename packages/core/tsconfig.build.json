@@ -1,11 +1,12 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
     "noEmit": false,
     "declaration": true,
     "declarationMap": true,
     "outDir": "dist",
     "rootDir": "src"
   },
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": ["src/**/*.test.ts", "src/**/testHelpers.ts"]
 }
