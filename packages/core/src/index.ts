@@ -1,3 +1,5 @@
+export * from './asr/constants.js';
+export * from './asr/recognizer.js';
 export * from './audio/constants.js';
 export * from './audio/frameUtils.js';
 export * from './audio/ingestor.js';
