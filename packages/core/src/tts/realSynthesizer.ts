@@ -4,20 +4,10 @@ import {
   MIN_VOLUME_LEVEL,
   STOP_PLAYBACK_MAX_MS,
 } from './constants.js';
-
-export interface MockTtsDriver {
-  synthesize(text: string, spokenIndex: number): Promise<void>;
-}
-
-export interface AudioSynthesizer {
-  setEnabled(on: boolean): void;
-  isEnabled(): boolean;
-  setVolume(level: number): void;
-  getVolume(): number;
-  enqueue(segment: ZhSegment): void;
-  onSynthFailure(handler: (segmentId: string) => void): () => void;
-  onPlaybackStateChange(handler: (playing: boolean) => void): () => void;
-}
+import type { AudioPlayer } from './audioPlayer.js';
+import { createWebAudioPlayer } from './audioPlayer.js';
+import type { AudioSynthesizer } from './synthesizer.js';
+import type { TtsDriver } from './ttsDriver.js';
 
 type SynthFailureHandler = (segmentId: string) => void;
 type PlaybackStateHandler = (playing: boolean) => void;
@@ -33,34 +23,31 @@ interface QueuedSegment {
   segment: ZhSegment;
 }
 
-export interface MockAudioSynthesizerConfig {
-  driver?: MockTtsDriver;
-  synthesisDurationMs?: number;
+export interface RealAudioSynthesizerConfig {
+  driver: TtsDriver;
+  player?: AudioPlayer;
   setTimeoutFn?: ScheduleFn;
   clearTimeoutFn?: CancelScheduleFn;
 }
 
-export class MockAudioSynthesizer implements AudioSynthesizer {
+export class RealAudioSynthesizer implements AudioSynthesizer {
   private enabled = false;
   private volume = 5;
   private readonly queue: QueuedSegment[] = [];
   private processing = false;
   private processScheduled = false;
   private stopHandle: TimerHandle | undefined;
-  private activeSegmentId: string | undefined;
   private readonly failureHandlers = new Set<SynthFailureHandler>();
   private readonly playbackHandlers = new Set<PlaybackStateHandler>();
-  private playing = false;
-  private readonly driver: MockTtsDriver;
-  private readonly synthesisDurationMs: number;
+  private readonly driver: TtsDriver;
+  private readonly player: AudioPlayer;
   private readonly schedule: ScheduleFn;
   private readonly cancelSchedule: CancelScheduleFn;
+  private playing = false;
 
-  constructor(config: MockAudioSynthesizerConfig = {}) {
-    this.driver = config.driver ?? {
-      synthesize: async () => {},
-    };
-    this.synthesisDurationMs = config.synthesisDurationMs ?? 200;
+  constructor(config: RealAudioSynthesizerConfig) {
+    this.driver = config.driver;
+    this.player = config.player ?? createWebAudioPlayer();
     this.schedule = config.setTimeoutFn ?? defaultSchedule;
     this.cancelSchedule = config.clearTimeoutFn ?? defaultCancelSchedule;
   }
@@ -128,8 +115,8 @@ export class MockAudioSynthesizer implements AudioSynthesizer {
       this.stopHandle = undefined;
     }
 
+    this.player.stop();
     this.processing = false;
-    this.activeSegmentId = undefined;
     this.queue.length = 0;
     this.setPlaying(false);
   }
@@ -145,40 +132,21 @@ export class MockAudioSynthesizer implements AudioSynthesizer {
     }
 
     this.processing = true;
-    this.activeSegmentId = next.segment.id;
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        this.stopHandle = this.schedule(async () => {
-          this.stopHandle = undefined;
-          try {
-            if (!this.enabled || this.volume === MIN_VOLUME_LEVEL) {
-              resolve();
-              return;
-            }
+      const audio = await this.driver.synthesize(next.segment.zhText);
+      if (!this.enabled || this.volume === MIN_VOLUME_LEVEL) {
+        return;
+      }
 
-            this.setPlaying(true);
-            await this.driver.synthesize(next.segment.zhText, next.segment.spokenIndex);
-            this.setPlaying(false);
-            resolve();
-          } catch (error) {
-            reject(error);
-          }
-        }, this.synthesisDurationMs);
-      });
+      this.setPlaying(true);
+      await this.player.play(audio, this.volume);
     } catch {
-      this.setPlaying(false);
       this.emitFailure(next.segment.id);
     } finally {
+      this.setPlaying(false);
       this.processing = false;
-      this.activeSegmentId = undefined;
       void this.processQueue();
-    }
-  }
-
-  private emitFailure(segmentId: string): void {
-    for (const handler of this.failureHandlers) {
-      handler(segmentId);
     }
   }
 
@@ -192,12 +160,16 @@ export class MockAudioSynthesizer implements AudioSynthesizer {
       handler(playing);
     }
   }
+
+  private emitFailure(segmentId: string): void {
+    for (const handler of this.failureHandlers) {
+      handler(segmentId);
+    }
+  }
 }
 
-export function createAudioSynthesizer(
-  config: MockAudioSynthesizerConfig = {},
-): AudioSynthesizer {
-  return new MockAudioSynthesizer(config);
+export function createRealAudioSynthesizer(config: RealAudioSynthesizerConfig): AudioSynthesizer {
+  return new RealAudioSynthesizer(config);
 }
 
 function clampVolume(level: number): number {
