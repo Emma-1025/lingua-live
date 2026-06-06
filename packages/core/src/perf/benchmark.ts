@@ -1,5 +1,4 @@
 import type { CorrectionEngine } from '../correct/correctionEngine.js';
-import type { LatencyMonitor } from './latencyMonitor.js';
 import { percentile95 } from './latencyMonitor.js';
 import { createPipeline, type PipelineConfig } from '../pipeline/pipeline.js';
 import { TranslatorImpl } from '../translate/translator.js';

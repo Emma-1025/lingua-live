@@ -100,7 +100,7 @@ describe('Pipeline integration', () => {
   });
 
   it('drives audio through mock ASR and translator without dropping frames', async () => {
-    let clock = 1_000;
+    const clock = 1_000;
     const driver = new ScriptedMockAsrDriver([
       {
         hypotheses: [

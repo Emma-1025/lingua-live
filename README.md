@@ -1,23 +1,76 @@
 ﻿# LinguaLive
 
-AI simultaneous interpretation assistant with real-time Chinese subtitles.
+AI simultaneous interpretation assistant with real-time Chinese subtitles. Captures English (or other source-language) audio, streams it through ASR → DeepSeek translation → optional Chinese TTS, and displays live subtitles with self-correction.
 
-## Development
+## Quick start
 
 ```bash
 npm install
-npm test          # run unit tests (Vitest)
-npm run build     # build core + app
-npm run dev       # start Vite dev server for the UI shell
-npm run dev:desktop  # Tauri desktop shell (system/mic capture via Rust backend)
+npm test              # 133 unit/integration tests (Vitest)
+npm run build         # build core + app
+npm run dev           # web UI at http://localhost:5173
+npm run dev:desktop   # Tauri desktop (system/mic capture)
 ```
 
-Set `DEEPSEEK_API_KEY` for real translation, or rely on the built-in mock translator in development.
+Mock drivers are used by default — no API keys required for local development and CI.
 
-### Monorepo layout
+## Environment variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DEEPSEEK_API_KEY` | For real translation | DeepSeek chat completions (translation + correction) |
+| `LINGUA_VENDOR_MODE` | No | `mock` (default) or `real` for cloud ASR/TTS |
+| `DEEPGRAM_API_KEY` | When `real` | Streaming ASR (Deepgram) |
+| `OPENAI_API_KEY` / `TTS_API_KEY` | When `real` | Chinese TTS (OpenAI-compatible `/audio/speech`) |
+
+Example for a full live session on desktop:
+
+```bash
+export DEEPSEEK_API_KEY=sk-...
+export LINGUA_VENDOR_MODE=real
+export DEEPGRAM_API_KEY=...
+export OPENAI_API_KEY=sk-...
+npm run dev:desktop
+```
+
+Keys must live in the desktop backend process or your shell environment — never commit them or embed them in client bundles.
+
+## Monorepo layout
 
 | Package | Description |
 |---------|-------------|
-| `@lingua-live/core` | Pipeline domain types and shared utilities |
-| `@lingua-live/app` | React interpretation UI |
-| `@lingua-live/desktop` | Tauri desktop shell with native audio capture |
+| `@lingua-live/core` | Pipeline: ingest → VAD → ASR → translate → correct → transcript/TTS |
+| `@lingua-live/app` | React UI: subtitles, controls, settings, consent, export |
+| `@lingua-live/desktop` | Tauri 2 shell with Rust/cpal system & microphone capture |
+
+## Architecture (high level)
+
+```
+Audio Ingestor → Speech Recognizer → Translator (DeepSeek)
+                         ↓                    ↓
+                  Correction Engine    Subtitle stream
+                         ↓                    ↓
+                  Transcript store     Audio Synthesizer (optional)
+```
+
+- **File / system / microphone** sources via `SessionIngestor`
+- **Partial subtitles** throttled under load; frames are never dropped (bounded queue + back-pressure)
+- **Self-correction** when ASR revises an earlier hypothesis (e.g. corps → corpus)
+- **Latency monitor** warns when p95 partial e2e exceeds 5 s
+
+## Manual acceptance checklist
+
+1. `npm run dev:desktop` on your target OS
+2. Accept the consent dialog, select **系统声音**, start a session while playing English audio
+3. Confirm Chinese partial/final subtitles appear within ~3 s
+4. Toggle **显示原文**, font size, and **中文语音** + volume in settings
+5. Stop and export transcript when finals exist
+
+## Desktop build (optional)
+
+Requires Rust stable and platform WebKit/GTK deps (see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)):
+
+```bash
+cd packages/desktop
+npm run tauri build
+```

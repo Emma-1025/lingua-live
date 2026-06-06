@@ -4,36 +4,63 @@
 
 ### Product overview
 
-LinguaLive is an npm workspaces monorepo (`packages/core`, `packages/app`) for an AI simultaneous interpretation assistant. The core library has unit tests; the app is a React + Vite + Three.js UI shell placeholder.
+LinguaLive is an npm workspaces monorepo for an AI simultaneous interpretation assistant:
+
+| Package | Role |
+|---------|------|
+| `packages/core` | Pipeline orchestrator (ingest → ASR → translate → correct → TTS/transcript) |
+| `packages/app` | React + Vite UI (subtitles, controls, settings, consent, export) |
+| `packages/desktop` | Tauri 2 desktop shell with Rust/cpal audio capture |
+
+Tasks 1–18 from `.kiro/specs/ai-interpretation-assistant/tasks.md` are implemented on `main`.
 
 ### Prerequisites
 
-- Node.js 18+ (tested with v22)
+- Node.js 18+ (CI uses v22)
 - npm (workspaces)
+- For desktop: Rust stable + platform deps for Tauri (see README)
 
-No Docker, database, or external API keys are required for current development.
+No API keys are required for `npm test` / `npm run build` — mocks are used by default.
 
 ### Standard commands
-
-See `README.md` for the canonical dev workflow:
 
 | Task | Command |
 |------|---------|
 | Install deps | `npm install` |
-| Unit tests | `npm test` |
+| Unit tests | `npm test` (133 tests) |
 | Lint | `npm run lint` |
 | Build | `npm run build` |
-| Dev server | `npm run dev` |
+| Web dev | `npm run dev` → http://localhost:5173 |
+| Desktop dev | `npm run dev:desktop` |
 
 ### Dev server
 
-- `npm run dev` builds `@lingua-live/core` first, then starts Vite on **http://localhost:5173**.
-- Run the dev server in a tmux session if you need it to persist in the background.
+- `npm run dev` builds `@lingua-live/core` first, then starts Vite on port **5173**.
+- `npm run dev:desktop` builds core + app and launches the Tauri shell.
+- Use tmux for long-running dev servers in cloud environments.
 
-### Lint note
+### Environment variables
 
-`npm run lint` may report pre-existing `prefer-const` issues in test files under `packages/core/src/asr/recognizer.test.ts`. Tests and build still pass.
+- `DEEPSEEK_API_KEY` — real translation/correction (falls back to mock in dev if unset)
+- `LINGUA_VENDOR_MODE=mock|real` — ASR/TTS driver selection (default `mock`)
+- `DEEPGRAM_API_KEY`, `OPENAI_API_KEY` / `TTS_API_KEY` — required when `LINGUA_VENDOR_MODE=real`
 
-### What is not implemented yet
+### Key test suites
 
-Core modules exist (audio ingestor, VAD segmenter, mock ASR, DeepSeek translator client), but the full pipeline orchestration and live UI subtitles are not wired yet. Cloud ASR/TTS vendors and a desktop shell for system audio are also outstanding. Current hello-world scope: unit tests + UI shell at port 5173.
+| Path | Covers |
+|------|--------|
+| `packages/core/src/pipeline/pipeline.test.ts` | End-to-end pipeline with mock ASR |
+| `packages/core/src/acceptance/bilibiliScenario.test.ts` | Bilibili-style corps→corpus correction |
+| `packages/core/src/perf/benchmark.test.ts` | Golden-clip p95 latency ≤ 3 s |
+| `packages/core/src/perf/soak.test.ts` | 120-min simulated soak, zero dropped frames |
+| `packages/app/src/acceptance/uiAcceptance.test.tsx` | Settings, a11y, keyboard |
+
+### CI
+
+GitHub Actions workflow `.github/workflows/ci.yml` runs lint, test, and build on push/PR to `main`.
+
+### Common pitfalls
+
+- Pipeline tests use `vi.useFakeTimers()` — call `vi.setSystemTime(new Date(1_000))` when measuring latency.
+- `createCorrectionEngine()` requires `DEEPSEEK_API_KEY` unless a stub is injected in tests.
+- Desktop system-audio capture only works inside the Tauri shell, not the web dev server alone.
