@@ -27,11 +27,13 @@ No API keys are required for `npm test` / `npm run build` — mocks are used by 
 | Task | Command |
 |------|---------|
 | Install deps | `npm install` |
-| Unit tests | `npm test` (133 tests) |
+| Unit tests | `npm test` (137 tests) |
 | Lint | `npm run lint` |
 | Build | `npm run build` |
 | Web dev | `npm run dev` → http://localhost:5173 |
 | Desktop dev | `npm run dev:desktop` |
+| Desktop release | `npm run build:desktop` (installers in `packages/desktop/src-tauri/target/release/bundle/`) |
+| Desktop smoke build | `npm run build:desktop:smoke` (`tauri build --no-bundle`) |
 
 ### Dev server
 
@@ -57,7 +59,11 @@ No API keys are required for `npm test` / `npm run build` — mocks are used by 
 
 ### CI
 
-GitHub Actions workflow `.github/workflows/ci.yml` runs lint, test, and build on push/PR to `main`.
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `.github/workflows/ci.yml` | push/PR `main` | lint, test, web build |
+| `.github/workflows/desktop.yml` | push/PR `main` | Linux Tauri smoke build (`--no-bundle`) |
+| `.github/workflows/release-desktop.yml` | tag `app-v*` or manual | multi-OS installers via `tauri-action` |
 
 ### Common pitfalls
 
