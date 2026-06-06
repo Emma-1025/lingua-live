@@ -10,6 +10,7 @@ import {
   type CorrectionEngine,
 } from '../correct/correctionEngine.js';
 import type {
+  AudioSourceKind,
   AudioSourceSelection,
   ContextWindowEntry,
   SourceSegment,
@@ -21,6 +22,11 @@ import {
   type TranscriptStore,
 } from '../transcript/store.js';
 import { createTranslator, type Translator } from '../translate/translator.js';
+import {
+  shouldDuckSource,
+  type SourceDuckController,
+  type SourceMonitor,
+} from '../audio/sourceDuck.js';
 import { createAudioSynthesizer, type AudioSynthesizer } from '../tts/synthesizer.js';
 import { BoundedAsyncQueue } from './boundedQueue.js';
 import {
@@ -49,6 +55,8 @@ export interface PipelineConfig {
   transcriptStore?: TranscriptStore;
   synthesizer?: AudioSynthesizer;
   latencyMonitor?: LatencyMonitor;
+  sourceDuckController?: SourceDuckController;
+  sourceMonitor?: SourceMonitor;
   frameQueueSize?: number;
   partialThrottleMs?: number;
   partialLoadThreshold?: number;
@@ -76,6 +84,8 @@ export class PipelineImpl implements Pipeline {
   private readonly transcriptStore: TranscriptStore;
   private readonly synthesizer: AudioSynthesizer;
   private readonly latencyMonitor: LatencyMonitor;
+  private readonly sourceDuckController?: SourceDuckController;
+  private readonly sourceMonitor?: SourceMonitor;
   private readonly frameQueue: BoundedAsyncQueue<import('../models.js').AudioFrame>;
   private readonly partialThrottleMs: number;
   private readonly partialLoadThreshold: number;
@@ -88,6 +98,7 @@ export class PipelineImpl implements Pipeline {
 
   private running = false;
   private showSourceText = false;
+  private audioSourceKind: AudioSourceKind = 'file';
   private enqueuedFrameCount = 0;
   private processedFrameCount = 0;
   private unsubscribeIngestor: (() => void) | undefined;
@@ -105,7 +116,18 @@ export class PipelineImpl implements Pipeline {
     this.transcriptStore = config.transcriptStore ?? createTranscriptStore();
     this.synthesizer = config.synthesizer ?? createAudioSynthesizer();
     this.latencyMonitor = config.latencyMonitor ?? createLatencyMonitor();
+    this.sourceDuckController = config.sourceDuckController;
+    this.sourceMonitor = config.sourceMonitor;
     this.frameQueue = new BoundedAsyncQueue(config.frameQueueSize ?? DEFAULT_FRAME_QUEUE_SIZE);
+
+    this.synthesizer.onPlaybackStateChange((playing) => {
+      if (!shouldDuckSource(this.audioSourceKind)) {
+        return;
+      }
+
+      this.sourceDuckController?.setSourceSuppressed(playing);
+      this.sourceMonitor?.setSourceSuppressed(playing);
+    });
     this.partialThrottleMs = config.partialThrottleMs ?? DEFAULT_PARTIAL_THROTTLE_MS;
     this.partialLoadThreshold = config.partialLoadThreshold ?? DEFAULT_PARTIAL_LOAD_THRESHOLD;
     this.now = config.now ?? (() => Date.now());
@@ -118,6 +140,7 @@ export class PipelineImpl implements Pipeline {
 
     this.running = true;
     this.showSourceText = options.showSourceText ?? false;
+    this.audioSourceKind = options.selection.kind;
     this.enqueuedFrameCount = 0;
     this.processedFrameCount = 0;
     this.partialLastEmittedAt.clear();
@@ -132,6 +155,9 @@ export class PipelineImpl implements Pipeline {
 
     this.unsubscribeIngestor = this.ingestor.onFrame((frame) => {
       this.enqueuedFrameCount += 1;
+      if (this.sourceMonitor && shouldDuckSource(this.audioSourceKind)) {
+        this.sourceMonitor.pushFrame(frame);
+      }
       void this.frameQueue.enqueue(frame);
     });
     this.unsubscribeRecognizer = this.recognizer.onSegment((segment) => {
@@ -165,6 +191,7 @@ export class PipelineImpl implements Pipeline {
     }
 
     this.running = false;
+    this.sourceMonitor?.stop();
     await this.ingestor.stop();
     this.recognizer.flush();
     this.frameQueue.clear();

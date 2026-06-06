@@ -22,6 +22,7 @@ import {
 } from '../lib/subtitleState.js';
 import type { SessionControl, SessionState } from '../types/session.js';
 import { createDevTranslator } from './createDevTranslator.js';
+import { createVendorPipelineParts } from './createVendorPipeline.js';
 
 const CONSENT_STORAGE_KEY = 'lingua-live-consent-v1';
 
@@ -31,10 +32,14 @@ function hasConsent(): boolean {
 
 export function useInterpretationSession() {
   const sessionManager = useMemo(() => new SessionManager(), []);
+  const vendorParts = useMemo(() => createVendorPipelineParts(), []);
   const [pipeline, setPipeline] = useState(() =>
     createPipeline({
       ingestor: createSessionIngestor(),
       translator: createDevTranslator(),
+      recognizer: vendorParts.recognizer,
+      synthesizer: vendorParts.synthesizer,
+      sourceMonitor: vendorParts.sourceMonitor,
     }),
   );
   const [isDesktop, setIsDesktop] = useState(false);
@@ -61,6 +66,9 @@ export function useInterpretationSession() {
             isFileAccessible: fileAccess?.isFileAccessible,
           }),
           translator: createDevTranslator(),
+          recognizer: vendorParts.recognizer,
+          synthesizer: vendorParts.synthesizer,
+          sourceMonitor: vendorParts.sourceMonitor,
         }),
       );
     })();
@@ -68,7 +76,7 @@ export function useInterpretationSession() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [vendorParts]);
   const linesMapRef = useRef(new Map<string, DisplaySubtitleLine>());
   const sessionIdRef = useRef(createSessionId());
   const sessionStartedAtRef = useRef<number | null>(null);
