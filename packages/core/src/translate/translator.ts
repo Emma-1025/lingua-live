@@ -1,5 +1,5 @@
 import type { DeepSeekClient, ChatMessage } from '../llm/deepseekClient.js';
-import { createDeepSeekClient } from '../llm/deepseekClient.js';
+import { createDeepSeekClientIfConfigured } from '../llm/deepseekClient.js';
 import type {
   ContextWindow,
   SourceSegment,
@@ -45,7 +45,7 @@ export class TranslatorImpl implements Translator {
   private readonly translationTimeoutMs: number;
 
   constructor(config: TranslatorConfig = {}) {
-    this.client = config.client ?? createDeepSeekClient();
+    this.client = config.client ?? createDeepSeekClientIfConfigured();
     this.glossary = config.glossary;
     this.sourceLanguage = config.sourceLanguage ?? DEFAULT_SOURCE_LANGUAGE;
     this.contextWindowSize = config.contextWindowSize ?? DEFAULT_CONTEXT_WINDOW_SIZE;

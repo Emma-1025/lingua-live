@@ -1,5 +1,5 @@
 import type { DeepSeekClient } from '../llm/deepseekClient.js';
-import { createDeepSeekClient } from '../llm/deepseekClient.js';
+import { createDeepSeekClientIfConfigured } from '../llm/deepseekClient.js';
 import type { SourceSegment, ZhSegment } from '../models.js';
 import type { Translator } from '../translate/translator.js';
 import { createTranslator } from '../translate/translator.js';
@@ -60,7 +60,7 @@ export class CorrectionEngineImpl implements CorrectionEngine {
   constructor(config: CorrectionEngineConfig = {}) {
     this.client =
       config.client ??
-      createDeepSeekClient({
+      createDeepSeekClientIfConfigured({
         model: config.correctionModel ?? DEFAULT_CORRECTION_MODEL,
       });
     this.translator = config.translator ?? createTranslator();

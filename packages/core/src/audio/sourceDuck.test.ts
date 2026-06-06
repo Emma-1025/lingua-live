@@ -35,6 +35,40 @@ describe('source ducking', () => {
     );
   });
 
+  it('falls back safely when AudioContext is unavailable', () => {
+    const original = globalThis.AudioContext;
+    Object.defineProperty(globalThis, 'AudioContext', {
+      configurable: true,
+      value: class {
+        constructor() {
+          throw new Error('AudioContext unavailable');
+        }
+      },
+    });
+
+    try {
+      const monitor = new WebAudioSourceMonitor();
+      expect(() => monitor.pushFrame({
+        sessionId: 's',
+        seq: 0,
+        capturedAt: 0,
+        pcm: new Float32Array(4),
+        durationMs: 100,
+      })).not.toThrow();
+      monitor.setSourceSuppressed(true);
+      monitor.stop();
+    } finally {
+      if (original) {
+        Object.defineProperty(globalThis, 'AudioContext', {
+          configurable: true,
+          value: original,
+        });
+      } else {
+        Reflect.deleteProperty(globalThis, 'AudioContext');
+      }
+    }
+  });
+
   it('fans out suppression to composite targets', () => {
     const states: boolean[] = [];
     const controller = new CompositeSourceDuckController([

@@ -17,6 +17,28 @@ body {
   margin: 0;
 }
 
+.app-error {
+  min-height: 100vh;
+  padding: 2rem;
+  background: #0b1020;
+  color: #f5b8b8;
+}
+
+.app-error h1 {
+  margin-top: 0;
+  color: #e8edf7;
+}
+
+.app-error pre {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #1a2238;
+  color: #ffb4b4;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

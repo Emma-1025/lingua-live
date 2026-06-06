@@ -238,6 +238,24 @@ describe('CorrectionEngineImpl', () => {
       }),
     ).toBeInstanceOf(CorrectionEngineImpl);
   });
+
+  it('creates without DEEPSEEK_API_KEY using a mock client', () => {
+    const env = (
+      globalThis as { process?: { env?: Record<string, string | undefined> } }
+    ).process?.env;
+    const previous = env?.DEEPSEEK_API_KEY;
+    if (env) {
+      delete env.DEEPSEEK_API_KEY;
+    }
+
+    try {
+      expect(createCorrectionEngine()).toBeInstanceOf(CorrectionEngineImpl);
+    } finally {
+      if (env && previous !== undefined) {
+        env.DEEPSEEK_API_KEY = previous;
+      }
+    }
+  });
 });
 
 function createIdleClient(): DeepSeekClient {

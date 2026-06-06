@@ -130,7 +130,8 @@ export class PipelineImpl implements Pipeline {
     this.recognizer =
       config.recognizer ?? createSpeechRecognizer(config.recognizerDeps ?? {});
     this.translator = config.translator ?? createTranslator();
-    this.correctionEngine = config.correctionEngine ?? createCorrectionEngine();
+    this.correctionEngine =
+      config.correctionEngine ?? createCorrectionEngine({ translator: this.translator });
     this.transcriptStore = config.transcriptStore ?? createTranscriptStore();
     this.synthesizer = config.synthesizer ?? createAudioSynthesizer();
     this.latencyMonitor = config.latencyMonitor ?? createLatencyMonitor();

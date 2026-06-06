@@ -47,6 +47,13 @@ fn is_file_accessible(path: String) -> Result<bool, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Linux WebKit + some GPU drivers render a blank webview without this (tauri-apps/tauri#13074).
+    #[cfg(target_os = "linux")]
+    {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+    }
+
     tauri::Builder::default()
         .manage(Mutex::new(AppState {
             capture: CaptureManager::new(),
