@@ -6,10 +6,11 @@ AI simultaneous interpretation assistant with real-time Chinese subtitles. Captu
 
 ```bash
 npm install
-npm test              # 133 unit/integration tests (Vitest)
-npm run build         # build core + app
-npm run dev           # web UI at http://localhost:5173
-npm run dev:desktop   # Tauri desktop (system/mic capture)
+npm test                  # 137 unit/integration tests (Vitest)
+npm run build             # build core + app
+npm run dev               # web UI at http://localhost:5173
+npm run dev:desktop       # Tauri desktop (system/mic capture)
+npm run build:desktop     # desktop release binary + installers (.deb, .AppImage, .msi, .dmg)
 ```
 
 Mock drivers are used by default — no API keys required for local development and CI.
@@ -66,11 +67,41 @@ Audio Ingestor → Speech Recognizer → Translator (DeepSeek)
 4. Toggle **显示原文**, font size, and **中文语音** + volume in settings
 5. Stop and export transcript when finals exist
 
-## Desktop build (optional)
+## Desktop build
 
 Requires Rust stable and platform WebKit/GTK deps (see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)):
 
 ```bash
-cd packages/desktop
-npm run tauri build
+npm run build:desktop
 ```
+
+Artifacts land under `packages/desktop/src-tauri/target/release/bundle/`:
+
+| Platform | Installers |
+|----------|------------|
+| Linux | `.deb`, `.rpm`, `.AppImage` |
+| macOS | `.dmg` |
+| Windows | `.msi` (NSIS) |
+
+For a faster CI-style compile without packaging:
+
+```bash
+npm run build:desktop:smoke
+```
+
+To regenerate icons after changing `packages/desktop/app-icon.png`:
+
+```bash
+cd packages/desktop && npx tauri icon app-icon.png
+```
+
+### GitHub Releases
+
+Push a version tag to build installers for macOS (Intel + Apple Silicon), Windows, and Linux:
+
+```bash
+git tag app-v0.1.0
+git push origin app-v0.1.0
+```
+
+The `release-desktop` workflow uploads draft release assets. For signed/notarized macOS or Windows builds, configure the signing secrets documented in [Tauri’s GitHub pipeline guide](https://v2.tauri.app/distribute/pipelines/github/).
