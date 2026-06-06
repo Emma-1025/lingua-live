@@ -2,6 +2,7 @@ import {
   SessionManager,
   createPipeline,
   createSessionId,
+  createSessionIngestor,
   type AudioSourceKind,
   type SessionSettings,
   type SupportedSourceLanguage,
@@ -9,6 +10,10 @@ import {
 import { DEFAULT_SOURCE_LANGUAGE } from '@lingua-live/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_UI_SETTINGS } from '../components/SettingsPanel.js';
+import {
+  createTauriCaptureBridge,
+  createTauriFileAccess,
+} from '../desktop/tauriCaptureBridge.js';
 import {
   addUnrecognizedLine,
   toSortedSubtitleLines,
@@ -26,13 +31,44 @@ function hasConsent(): boolean {
 
 export function useInterpretationSession() {
   const sessionManager = useMemo(() => new SessionManager(), []);
-  const pipeline = useMemo(
-    () =>
-      createPipeline({
-        translator: createDevTranslator(),
-      }),
-    [],
+  const [pipeline, setPipeline] = useState(() =>
+    createPipeline({
+      ingestor: createSessionIngestor(),
+      translator: createDevTranslator(),
+    }),
   );
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const [captureBridge, fileAccess] = await Promise.all([
+        createTauriCaptureBridge(),
+        createTauriFileAccess(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      setIsDesktop(Boolean(captureBridge));
+      setPipeline(
+        createPipeline({
+          ingestor: createSessionIngestor({
+            captureBridge: captureBridge ?? undefined,
+            readFile: fileAccess?.readFile,
+            isFileAccessible: fileAccess?.isFileAccessible,
+          }),
+          translator: createDevTranslator(),
+        }),
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const linesMapRef = useRef(new Map<string, DisplaySubtitleLine>());
   const sessionIdRef = useRef(createSessionId());
   const sessionStartedAtRef = useRef<number | null>(null);
@@ -208,5 +244,6 @@ export function useInterpretationSession() {
     transcriptCount: pipeline.getTranscriptStore().getEntries().length,
     durationMs,
     canExport: pipeline.getTranscriptStore().canExport(),
+    isDesktop,
   };
 }

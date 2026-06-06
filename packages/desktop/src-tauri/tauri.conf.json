@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LinguaLive",
+  "version": "0.1.0",
+  "identifier": "com.lingua-live.app",
+  "build": {
+    "beforeDevCommand": "npm run dev -w @lingua-live/app",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "npm run build -w @lingua-live/core && npm run build -w @lingua-live/app",
+    "frontendDist": "../../app/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "LinguaLive",
+        "width": 1200,
+        "height": 820,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": []
+  }
+}

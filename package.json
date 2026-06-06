@@ -7,6 +7,7 @@
   "scripts": {
     "build": "npm run build -w @lingua-live/core && npm run build -w @lingua-live/app",
     "dev": "npm run build -w @lingua-live/core && npm run dev -w @lingua-live/app",
+    "dev:desktop": "npm run build -w @lingua-live/core && npm run dev -w @lingua-live/desktop",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint packages/core/src packages/app/src",

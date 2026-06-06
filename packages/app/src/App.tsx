@@ -18,7 +18,14 @@ export function App() {
           <p className="app__subtitle">AI 同声传译助手</p>
         </div>
         <p className="app__source">
-          来源：{session.sourceKind === 'file' ? '媒体文件' : session.sourceKind === 'system' ? '系统声音' : '麦克风'}
+          {session.isDesktop ? '桌面版' : 'Web 版'}
+          {' · '}
+          来源：
+          {session.sourceKind === 'file'
+            ? '媒体文件'
+            : session.sourceKind === 'system'
+              ? '系统声音'
+              : '麦克风'}
           {' · '}
           语言：{session.sourceLanguage.toUpperCase()}
         </p>
