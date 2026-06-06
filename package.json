@@ -10,7 +10,7 @@
     "dev:desktop": "npm run build -w @lingua-live/core && npm run dev -w @lingua-live/desktop",
     "build:desktop": "npm run build -w @lingua-live/desktop",
     "build:desktop:smoke": "npm run build:smoke -w @lingua-live/desktop",
-    "test": "vitest run",
+    "test": "npm run build -w @lingua-live/core && vitest run",
     "test:watch": "vitest",
     "lint": "eslint packages/core/src packages/app/src",
     "format": "prettier --write .",

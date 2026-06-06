@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build core (required by app unit tests)
+        run: npm run build -w @lingua-live/core
+
       - name: Lint
         run: npm run lint
 
