@@ -205,7 +205,7 @@ describe('CorrectionEngineImpl', () => {
     const client: DeepSeekClient = {
       streamChatCompletion: vi.fn(),
       chatCompletion: vi.fn(
-        () =>
+        (): Promise<string> =>
           new Promise((resolve) => {
             globalThis.setTimeout(
               () => resolve('[{"id":"seg-1","zhText":"迟到修正"}]'),

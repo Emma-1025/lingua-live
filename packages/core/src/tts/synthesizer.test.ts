@@ -68,7 +68,7 @@ describe('MockAudioSynthesizer', () => {
 
   it('stops in-progress playback within one second when disabled', async () => {
     const driver = {
-      synthesize: vi.fn(() => new Promise(() => {})),
+      synthesize: vi.fn((): Promise<void> => new Promise(() => {})),
     };
     const synth = new MockAudioSynthesizer({ driver, synthesisDurationMs: 50 });
     synth.setEnabled(true);
