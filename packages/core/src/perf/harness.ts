@@ -77,7 +77,7 @@ export function createFramesForScripts(
   let capturedAt = 1_000;
   let seq = 0;
 
-  for (const _script of scripts) {
+  for (let index = 0; index < scripts.length; index += 1) {
     const segmentFrames = createSegmentFrames({
       startSeq: seq,
       startCapturedAt: capturedAt,

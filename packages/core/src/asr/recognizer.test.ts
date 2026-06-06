@@ -37,8 +37,8 @@ function pushSpeech(
   startAt = 1_000,
   startSeq = 0,
 ): number {
-  let capturedAt = startAt;
-  let seq = startSeq;
+  const capturedAt = startAt;
+  const seq = startSeq;
 
   recognizer.pushAudio(
     createFrame({ seq, durationMs, capturedAt, amplitude: 0.5 }),
@@ -61,7 +61,7 @@ function pushSilence(
 }
 
 function openAndCloseSegment(recognizer: MockSpeechRecognizer): void {
-  let at = pushSpeech(recognizer, 200);
+  const at = pushSpeech(recognizer, 200);
   const afterSpeech = pushSilence(recognizer, 600, at, 1);
   void afterSpeech;
 }
