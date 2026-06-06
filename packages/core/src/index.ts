@@ -5,6 +5,8 @@ export * from './llm/constants.js';
 export * from './llm/deepseekClient.js';
 export * from './translate/constants.js';
 export * from './translate/translator.js';
+export * from './correct/constants.js';
+export * from './correct/correctionEngine.js';
 export * from './transcript/store.js';
 export * from './tts/constants.js';
 export * from './tts/synthesizer.js';
