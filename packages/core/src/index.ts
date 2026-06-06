@@ -6,6 +6,8 @@ export * from './llm/deepseekClient.js';
 export * from './translate/constants.js';
 export * from './translate/translator.js';
 export * from './transcript/store.js';
+export * from './tts/constants.js';
+export * from './tts/synthesizer.js';
 export * from './audio/frameUtils.js';
 export * from './audio/ingestor.js';
 export * from './audio/segmenter.js';
