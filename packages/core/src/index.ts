@@ -10,6 +10,8 @@ export * from './correct/correctionEngine.js';
 export * from './transcript/store.js';
 export * from './tts/constants.js';
 export * from './tts/synthesizer.js';
+export * from './perf/constants.js';
+export * from './perf/latencyMonitor.js';
 export * from './audio/frameUtils.js';
 export * from './audio/ingestor.js';
 export * from './audio/segmenter.js';
