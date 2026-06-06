@@ -4,6 +4,7 @@ import type {
   SupportedSourceLanguage,
 } from '@lingua-live/core';
 import { DEFAULT_SOURCE_LANGUAGE } from '@lingua-live/core';
+import { useEffect, useRef } from 'react';
 
 export interface SettingsPanelProps {
   open: boolean;
@@ -40,15 +41,44 @@ export function SettingsPanel({
   onSourceLanguageChange,
   onSettingsChange,
 }: SettingsPanelProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    closeButtonRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    globalThis.addEventListener('keydown', onKeyDown);
+    return () => globalThis.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
   if (!open) {
     return null;
   }
 
   return (
-    <aside className="settings-panel" aria-label="设置">
+    <aside
+      className="settings-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-label="设置"
+    >
       <header className="settings-panel__header">
         <h2>设置</h2>
-        <button type="button" onClick={onClose} aria-label="关闭设置">
+        <button
+          ref={closeButtonRef}
+          type="button"
+          onClick={onClose}
+          aria-label="关闭设置"
+        >
           ✕
         </button>
       </header>
@@ -156,6 +186,10 @@ export function SettingsPanel({
             min={0}
             max={10}
             value={settings.volumeLevel}
+            aria-valuemin={0}
+            aria-valuemax={10}
+            aria-valuenow={settings.volumeLevel}
+            aria-label="中文语音音量"
             onChange={(event) =>
               onSettingsChange({
                 ...settings,

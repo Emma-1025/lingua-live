@@ -135,6 +135,15 @@ export function useInterpretationSession() {
     return () => globalThis.clearInterval(interval);
   }, [refreshLines]);
 
+  useEffect(() => {
+    vendorParts.recognizer.setLanguage(sourceLanguage);
+  }, [sourceLanguage, vendorParts.recognizer]);
+
+  useEffect(() => {
+    vendorParts.synthesizer.setEnabled(settings.audioOutputEnabled);
+    vendorParts.synthesizer.setVolume(settings.volumeLevel);
+  }, [settings.audioOutputEnabled, settings.volumeLevel, vendorParts.synthesizer]);
+
   const acceptConsent = useCallback(() => {
     globalThis.localStorage?.setItem(CONSENT_STORAGE_KEY, 'accepted');
     setConsentOpen(false);

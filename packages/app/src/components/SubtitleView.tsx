@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { DisplaySubtitleLine } from '../lib/subtitleState.js';
 
 export interface SubtitleViewProps {
@@ -15,6 +15,8 @@ const FONT_SIZE_CLASS: Record<1 | 2 | 3, string> = {
 
 export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const announcedFinalsRef = useRef(new Set<string>());
+  const [finalAnnouncement, setFinalAnnouncement] = useState('');
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -25,11 +27,26 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
     container.scrollTop = container.scrollHeight;
   }, [lines, showSourceText, fontSizeLevel]);
 
+  useEffect(() => {
+    for (const line of lines) {
+      if (line.status !== 'final' || line.unrecognized || announcedFinalsRef.current.has(line.id)) {
+        continue;
+      }
+
+      announcedFinalsRef.current.add(line.id);
+      setFinalAnnouncement(line.zhText);
+    }
+  }, [lines]);
+
   return (
     <section
       className={`subtitle-view ${FONT_SIZE_CLASS[fontSizeLevel]}`}
       aria-label="实时字幕"
     >
+      <div className="sr-only" aria-live="assertive" aria-atomic="true">
+        {finalAnnouncement}
+      </div>
+
       <div
         ref={scrollRef}
         className="subtitle-view__scroll"
@@ -51,6 +68,14 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
                 .filter(Boolean)
                 .join(' ')}
               data-spoken-index={line.spokenIndex}
+              data-status={line.status}
+              aria-label={
+                line.showCorrectionHighlight
+                  ? `已更正字幕：${line.zhText}`
+                  : line.status === 'final'
+                    ? `最终字幕：${line.zhText}`
+                    : `临时字幕：${line.zhText}`
+              }
             >
               {showSourceText && line.sourceText ? (
                 <p className="subtitle-view__source">{line.sourceText}</p>
@@ -68,7 +93,9 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
                 )}
               </p>
               {line.showCorrectionHighlight ? (
-                <span className="subtitle-view__badge">✎已更正</span>
+                <span className="subtitle-view__badge" aria-hidden="true">
+                  ✎已更正
+                </span>
               ) : null}
             </article>
           ))

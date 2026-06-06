@@ -17,6 +17,18 @@ body {
   margin: 0;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 button,
 input,
 select {
@@ -88,6 +100,7 @@ select {
 
 .subtitle-view__line--corrected {
   background: rgba(255, 196, 77, 0.14);
+  border-left: 4px dashed #ffc44d;
   outline: 1px solid rgba(255, 196, 77, 0.35);
 }
 
@@ -123,7 +136,14 @@ select {
 }
 
 .subtitle-view__badge {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border: 1px dashed currentColor;
+  border-radius: 999px;
   color: #ffc44d;
+  text-decoration: underline;
+  text-decoration-style: wavy;
 }
 
 .subtitle-view__untranslated,
@@ -192,6 +212,14 @@ select {
 .control-panel__actions button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.control-panel__actions button:focus-visible,
+.settings-panel button:focus-visible,
+.settings-panel input:focus-visible,
+.settings-panel select:focus-visible {
+  outline: 2px solid #5f8cff;
+  outline-offset: 2px;
 }
 
 .control-panel__settings {
