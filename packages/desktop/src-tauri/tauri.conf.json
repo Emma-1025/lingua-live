@@ -12,10 +12,12 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "LinguaLive",
         "width": 1200,
         "height": 820,
-        "resizable": true
+        "resizable": true,
+        "backgroundColor": "#0b1020"
       }
     ],
     "security": {

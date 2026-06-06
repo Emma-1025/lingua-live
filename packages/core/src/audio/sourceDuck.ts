@@ -22,15 +22,38 @@ export interface WebAudioSourceMonitorConfig {
  * Optional monitor that plays captured source audio locally (file/system preview).
  * Gain is reduced while Chinese TTS is playing (Req 6.6).
  */
+class NoOpSourceMonitor implements SourceMonitor {
+  pushFrame(): void {}
+
+  setSourceSuppressed(): void {}
+
+  stop(): void {}
+}
+
 export class WebAudioSourceMonitor implements SourceMonitor {
-  private readonly audioContext: AudioContext;
+  private readonly audioContext: AudioContext | null;
   private readonly sampleRate: number;
-  private readonly gainNode: GainNode;
+  private readonly gainNode: GainNode | null;
   private nextStartTime = 0;
   private suppressed = false;
 
   constructor(config: WebAudioSourceMonitorConfig = {}) {
-    this.audioContext = config.audioContext ?? new AudioContext();
+    if (config.audioContext) {
+      this.audioContext = config.audioContext;
+    } else {
+      try {
+        this.audioContext = new AudioContext();
+      } catch {
+        this.audioContext = null;
+      }
+    }
+
+    if (!this.audioContext) {
+      this.sampleRate = config.sampleRate ?? 16_000;
+      this.gainNode = null;
+      return;
+    }
+
     this.sampleRate = config.sampleRate ?? this.audioContext.sampleRate;
     this.gainNode = this.audioContext.createGain();
     this.gainNode.gain.value = NORMAL_SOURCE_GAIN;
@@ -38,6 +61,10 @@ export class WebAudioSourceMonitor implements SourceMonitor {
   }
 
   pushFrame(frame: AudioFrame): void {
+    if (!this.audioContext || !this.gainNode) {
+      return;
+    }
+
     const buffer = this.audioContext.createBuffer(1, frame.pcm.length, this.sampleRate);
     buffer.copyToChannel(new Float32Array(frame.pcm), 0);
 
@@ -52,11 +79,14 @@ export class WebAudioSourceMonitor implements SourceMonitor {
 
   setSourceSuppressed(suppressed: boolean): void {
     this.suppressed = suppressed;
+    if (!this.gainNode) {
+      return;
+    }
     this.gainNode.gain.value = suppressed ? DUCKED_SOURCE_GAIN : NORMAL_SOURCE_GAIN;
   }
 
   stop(): void {
-    this.gainNode.disconnect();
+    this.gainNode?.disconnect();
     this.nextStartTime = 0;
     this.setSourceSuppressed(false);
   }
@@ -65,7 +95,11 @@ export class WebAudioSourceMonitor implements SourceMonitor {
 export function createWebAudioSourceMonitor(
   config?: WebAudioSourceMonitorConfig,
 ): SourceMonitor {
-  return new WebAudioSourceMonitor(config);
+  try {
+    return new WebAudioSourceMonitor(config);
+  } catch {
+    return new NoOpSourceMonitor();
+  }
 }
 
 export function shouldDuckSource(kind: AudioSourceKind): boolean {

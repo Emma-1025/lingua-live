@@ -211,6 +211,34 @@ export function createDeepSeekClient(config: DeepSeekClientConfig = {}): DeepSee
   return new DeepSeekClientImpl(config);
 }
 
+/** Local mock for dev/desktop when DEEPSEEK_API_KEY is not configured. */
+export function createMockDeepSeekClient(): DeepSeekClient {
+  return {
+    async *streamChatCompletion(messages) {
+      const source = messages.at(-1)?.content ?? '';
+      for (const char of source) {
+        yield char;
+      }
+    },
+    chatCompletion: async (messages) => messages.at(-1)?.content ?? '',
+  };
+}
+
+/** Returns a real client when configured; otherwise a non-throwing mock. */
+export function createDeepSeekClientIfConfigured(
+  config: DeepSeekClientConfig = {},
+): DeepSeekClient {
+  if (config.apiKey) {
+    return createDeepSeekClient(config);
+  }
+
+  try {
+    return createDeepSeekClient(config);
+  } catch {
+    return createMockDeepSeekClient();
+  }
+}
+
 function readApiKeyFromEnv(): string {
   const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
     ?.env;

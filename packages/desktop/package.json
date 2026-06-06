@@ -6,7 +6,8 @@
     "tauri": "tauri",
     "dev": "tauri dev",
     "build": "tauri build",
-    "build:smoke": "tauri build --no-bundle"
+    "build:smoke": "tauri build --no-bundle",
+    "start": "tauri run --release"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.4.0"

@@ -1,0 +1,10 @@
+[[permission]]
+identifier = "allow-audio-commands"
+description = "Enables LinguaLive audio capture and file access commands."
+commands.allow = [
+  "list_audio_sources",
+  "start_audio_capture",
+  "stop_audio_capture",
+  "read_audio_file",
+  "is_file_accessible",
+]
