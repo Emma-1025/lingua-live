@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@lingua-live/core": "*",
+    "@tauri-apps/api": "^2.4.0",
     "@react-three/drei": "^10.0.7",
     "@react-three/fiber": "^9.1.2",
     "react": "^19.1.0",

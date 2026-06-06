@@ -288,3 +288,7 @@ export class FileAudioIngestor implements AudioIngestor {
 export function createAudioIngestor(deps?: AudioIngestorDeps): AudioIngestor {
   return new FileAudioIngestor(deps);
 }
+
+export type { NativeAudioCaptureBridge } from './captureBridge.js';
+export { StreamAudioIngestor } from './streamIngestor.js';
+export { SessionIngestor, createSessionIngestor, type SessionIngestorDeps } from './sessionIngestor.js';
