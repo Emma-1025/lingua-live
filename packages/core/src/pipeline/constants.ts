@@ -6,3 +6,6 @@ export const DEFAULT_PARTIAL_THROTTLE_MS = 200;
 
 /** Queue occupancy ratio above which partial cadence is reduced. */
 export const DEFAULT_PARTIAL_LOAD_THRESHOLD = 0.75;
+
+/** Pause/resume must take effect within this window (Req 7.2, 7.3). */
+export const PAUSE_RESUME_MAX_MS = 1_000;

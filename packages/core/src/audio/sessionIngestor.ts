@@ -52,6 +52,18 @@ export class SessionIngestor implements AudioIngestor {
     return this.active?.isRunning() ?? false;
   }
 
+  isPaused(): boolean {
+    return this.active?.isPaused() ?? false;
+  }
+
+  async pause(): Promise<void> {
+    await this.active?.pause();
+  }
+
+  async resume(): Promise<void> {
+    await this.active?.resume();
+  }
+
   onFrame(handler: Parameters<AudioIngestor['onFrame']>[0]): () => void {
     const unsubscribers = [this.fileIngestor.onFrame(handler), this.streamIngestor.onFrame(handler)];
     return () => {

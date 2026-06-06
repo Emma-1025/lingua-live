@@ -74,6 +74,9 @@ export interface AudioIngestor {
   onFileEnd(handler: FileEndHandler): () => void;
   onStartRejected(handler: StartRejectedHandler): () => void;
   isRunning(): boolean;
+  isPaused(): boolean;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
 }
 
 export class FileAudioIngestor implements AudioIngestor {
@@ -85,6 +88,7 @@ export class FileAudioIngestor implements AudioIngestor {
   private readonly listDeviceSources: () => AudioDeviceInfo[];
 
   private running = false;
+  private paused = false;
   private sessionId = '';
   private seq = 0;
   private pacingTimer: TimerHandle | null = null;
@@ -156,6 +160,7 @@ export class FileAudioIngestor implements AudioIngestor {
     }
 
     this.sessionId = options.sessionId;
+    this.paused = false;
     this.seq = 0;
     this.frameIndex = 0;
     this.frameQueue = chunkPcm(pcm);
@@ -173,6 +178,7 @@ export class FileAudioIngestor implements AudioIngestor {
   async stop(): Promise<void> {
     this.clearPacingTimer();
     this.running = false;
+    this.paused = false;
     this.frameQueue = [];
     this.frameIndex = 0;
     this.sessionId = '';
@@ -180,6 +186,28 @@ export class FileAudioIngestor implements AudioIngestor {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  isPaused(): boolean {
+    return this.paused;
+  }
+
+  async pause(): Promise<void> {
+    if (!this.running || this.paused) {
+      return;
+    }
+
+    this.paused = true;
+    this.clearPacingTimer();
+  }
+
+  async resume(): Promise<void> {
+    if (!this.running || !this.paused) {
+      return;
+    }
+
+    this.paused = false;
+    this.scheduleNextFrame();
   }
 
   onFrame(handler: FrameHandler): () => void {
@@ -226,7 +254,7 @@ export class FileAudioIngestor implements AudioIngestor {
   }
 
   private scheduleNextFrame(): void {
-    if (!this.running || this.frameIndex >= this.frameQueue.length) {
+    if (!this.running || this.paused || this.frameIndex >= this.frameQueue.length) {
       this.finishFile();
       return;
     }

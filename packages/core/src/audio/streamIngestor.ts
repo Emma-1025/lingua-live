@@ -4,6 +4,7 @@ import {
   IngestorAlreadyRunningError,
   NoAudioSourceSelectedError,
   SourceInaccessibleError,
+  type AudioIngestor,
   type StartRejectionReason,
 } from './ingestor.js';
 
@@ -26,11 +27,12 @@ export interface StreamAudioIngestorConfig {
  * Audio ingestor for live device/system capture. Frames are pushed by a native
  * bridge (e.g. Tauri desktop shell) rather than read from a file.
  */
-export class StreamAudioIngestor {
+export class StreamAudioIngestor implements AudioIngestor {
   private readonly bridge: NativeAudioCaptureBridge | undefined;
   private readonly listDeviceSources: () => AudioDeviceInfo[];
 
   private running = false;
+  private paused = false;
   private unsubscribeBridgeFrame: (() => void) | undefined;
   private unsubscribeBridgeLost: (() => void) | undefined;
 
@@ -79,6 +81,10 @@ export class StreamAudioIngestor {
     }
 
     this.unsubscribeBridgeFrame = this.bridge.onFrame((frame) => {
+      if (this.paused) {
+        return;
+      }
+
       for (const handler of this.frameHandlers) {
         handler(frame);
       }
@@ -90,6 +96,7 @@ export class StreamAudioIngestor {
     try {
       await this.bridge.startCapture(options);
       this.running = true;
+      this.paused = false;
     } catch (error) {
       this.detachBridge();
       this.emitStartRejected('source_inaccessible');
@@ -107,12 +114,33 @@ export class StreamAudioIngestor {
     }
 
     this.running = false;
+    this.paused = false;
     await this.bridge?.stopCapture();
     this.detachBridge();
   }
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  isPaused(): boolean {
+    return this.paused;
+  }
+
+  async pause(): Promise<void> {
+    if (!this.running || this.paused) {
+      return;
+    }
+
+    this.paused = true;
+  }
+
+  async resume(): Promise<void> {
+    if (!this.running || !this.paused) {
+      return;
+    }
+
+    this.paused = false;
   }
 
   onFrame(handler: FrameHandler): () => void {
