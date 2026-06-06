@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_LLM_SETTINGS } from '@lingua-live/core';
 import { DEFAULT_UI_SETTINGS } from '../components/SettingsPanel.js';
 import { SettingsPanel } from '../components/SettingsPanel.js';
 import { SubtitleView } from '../components/SubtitleView.js';
@@ -11,6 +12,7 @@ describe('UI acceptance pass', () => {
     const user = userEvent.setup();
     const onSettingsChange = vi.fn();
     const onSourceKindChange = vi.fn();
+    const onLlmSettingsChange = vi.fn();
 
     const { rerender } = render(
       <SettingsPanel
@@ -19,11 +21,14 @@ describe('UI acceptance pass', () => {
         sourceLanguage="en"
         filePath=""
         settings={DEFAULT_UI_SETTINGS}
+        llmSettings={DEFAULT_LLM_SETTINGS}
+        sessionState="stopped"
         onClose={vi.fn()}
         onSourceKindChange={onSourceKindChange}
         onFilePathChange={vi.fn()}
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={onSettingsChange}
+        onLlmSettingsChange={onLlmSettingsChange}
       />,
     );
 
@@ -48,6 +53,11 @@ describe('UI acceptance pass', () => {
     await user.click(screen.getByLabelText('麦克风'));
     expect(onSourceKindChange).toHaveBeenCalledWith('microphone');
 
+    await user.selectOptions(screen.getByLabelText('提供商'), 'deepseek');
+    expect(onLlmSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'deepseek' }),
+    );
+
     rerender(
       <SettingsPanel
         open
@@ -55,11 +65,14 @@ describe('UI acceptance pass', () => {
         sourceLanguage="en"
         filePath="/talk.wav"
         settings={DEFAULT_UI_SETTINGS}
+        llmSettings={{ ...DEFAULT_LLM_SETTINGS, provider: 'deepseek', apiKey: 'sk-test' }}
+        sessionState="stopped"
         onClose={vi.fn()}
         onSourceKindChange={onSourceKindChange}
         onFilePathChange={vi.fn()}
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={onSettingsChange}
+        onLlmSettingsChange={onLlmSettingsChange}
       />,
     );
 
@@ -79,11 +92,14 @@ describe('UI acceptance pass', () => {
         sourceLanguage="en"
         filePath=""
         settings={DEFAULT_UI_SETTINGS}
+        llmSettings={DEFAULT_LLM_SETTINGS}
+        sessionState="stopped"
         onClose={onClose}
         onSourceKindChange={vi.fn()}
         onFilePathChange={vi.fn()}
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={vi.fn()}
+        onLlmSettingsChange={vi.fn()}
       />,
     );
 

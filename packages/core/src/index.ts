@@ -6,6 +6,7 @@ export * from './asr/recognizer.js';
 export * from './audio/constants.js';
 export * from './llm/constants.js';
 export * from './llm/deepseekClient.js';
+export * from './llm/llmConfig.js';
 export * from './translate/constants.js';
 export * from './translate/translator.js';
 export * from './correct/constants.js';

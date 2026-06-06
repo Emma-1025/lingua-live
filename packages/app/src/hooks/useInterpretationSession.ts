@@ -1,9 +1,8 @@
 import {
   SessionManager,
-  createPipeline,
   createSessionId,
-  createSessionIngestor,
   type AudioSourceKind,
+  type LlmSettings,
   type SessionSettings,
   type SupportedSourceLanguage,
 } from '@lingua-live/core';
@@ -14,6 +13,7 @@ import {
   createTauriCaptureBridge,
   createTauriFileAccess,
 } from '../desktop/tauriCaptureBridge.js';
+import { loadLlmSettings, saveLlmSettings } from '../lib/llmSettingsStorage.js';
 import {
   addUnrecognizedLine,
   toSortedSubtitleLines,
@@ -21,7 +21,7 @@ import {
   type DisplaySubtitleLine,
 } from '../lib/subtitleState.js';
 import type { SessionControl, SessionState } from '../types/session.js';
-import { createDevTranslator } from './createDevTranslator.js';
+import { createAppPipeline } from './createAppPipeline.js';
 import { createVendorPipelineParts } from './createVendorPipeline.js';
 
 const CONSENT_STORAGE_KEY = 'lingua-live-consent-v1';
@@ -30,19 +30,30 @@ function hasConsent(): boolean {
   return globalThis.localStorage?.getItem(CONSENT_STORAGE_KEY) === 'accepted';
 }
 
+interface IngestorBridgeDeps {
+  captureBridge?: Awaited<ReturnType<typeof createTauriCaptureBridge>>;
+  readFile?: (filePath: string) => Promise<ArrayBuffer>;
+  isFileAccessible?: (filePath: string) => Promise<boolean>;
+}
+
 export function useInterpretationSession() {
   const sessionManager = useMemo(() => new SessionManager(), []);
   const vendorParts = useMemo(() => createVendorPipelineParts(), []);
+  const ingestorDepsRef = useRef<IngestorBridgeDeps>({});
+  const [ingestorReady, setIngestorReady] = useState(false);
+  const [llmSettings, setLlmSettingsState] = useState<LlmSettings>(loadLlmSettings);
   const [pipeline, setPipeline] = useState(() =>
-    createPipeline({
-      ingestor: createSessionIngestor(),
-      translator: createDevTranslator(),
-      recognizer: vendorParts.recognizer,
-      synthesizer: vendorParts.synthesizer,
-      sourceMonitor: vendorParts.sourceMonitor,
+    createAppPipeline({
+      llmSettings: loadLlmSettings(),
+      vendorParts,
     }),
   );
   const [isDesktop, setIsDesktop] = useState(false);
+
+  const setLlmSettings = useCallback((next: LlmSettings) => {
+    setLlmSettingsState(next);
+    saveLlmSettings(next);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,26 +68,20 @@ export function useInterpretationSession() {
         return;
       }
 
+      ingestorDepsRef.current = {
+        captureBridge: captureBridge ?? undefined,
+        readFile: fileAccess?.readFile,
+        isFileAccessible: fileAccess?.isFileAccessible,
+      };
       setIsDesktop(Boolean(captureBridge));
-      setPipeline(
-        createPipeline({
-          ingestor: createSessionIngestor({
-            captureBridge: captureBridge ?? undefined,
-            readFile: fileAccess?.readFile,
-            isFileAccessible: fileAccess?.isFileAccessible,
-          }),
-          translator: createDevTranslator(),
-          recognizer: vendorParts.recognizer,
-          synthesizer: vendorParts.synthesizer,
-          sourceMonitor: vendorParts.sourceMonitor,
-        }),
-      );
+      setIngestorReady(true);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [vendorParts]);
+  }, []);
+
   const linesMapRef = useRef(new Map<string, DisplaySubtitleLine>());
   const sessionIdRef = useRef(createSessionId());
   const sessionStartedAtRef = useRef<number | null>(null);
@@ -100,6 +105,22 @@ export function useInterpretationSession() {
   const refreshLines = useCallback(() => {
     setLines(toSortedSubtitleLines(linesMapRef.current));
   }, []);
+
+  useEffect(() => {
+    if (!ingestorReady || sessionState !== 'stopped') {
+      return;
+    }
+
+    setPipeline(
+      createAppPipeline({
+        llmSettings,
+        vendorParts,
+        captureBridge: ingestorDepsRef.current.captureBridge,
+        readFile: ingestorDepsRef.current.readFile,
+        isFileAccessible: ingestorDepsRef.current.isFileAccessible,
+      }),
+    );
+  }, [ingestorReady, llmSettings, sessionState, vendorParts]);
 
   useEffect(() => {
     const unsubscribeSubtitle = pipeline.onSubtitle((update) => {
@@ -249,6 +270,8 @@ export function useInterpretationSession() {
     latencyWarning,
     settings,
     setSettings,
+    llmSettings,
+    setLlmSettings,
     sourceKind,
     setSourceKind,
     filePath,
