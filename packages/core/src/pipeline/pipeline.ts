@@ -73,7 +73,10 @@ export interface PipelineMemorySnapshot {
 
 export interface Pipeline {
   start(options: PipelineStartOptions): Promise<void>;
+  pause(): Promise<void>;
+  resume(): Promise<void>;
   stop(): Promise<void>;
+  isPaused(): boolean;
   onSubtitle(handler: (update: SubtitleUpdate) => void): () => void;
   onUnrecognized(handler: (event: UnrecognizedEvent) => void): () => void;
   onLatencyWarning(handler: (active: boolean) => void): () => void;
@@ -110,6 +113,8 @@ export class PipelineImpl implements Pipeline {
   private readonly contextEntries: ContextWindowEntry[] = [];
 
   private running = false;
+  private paused = false;
+  private resumeWaiters: Array<() => void> = [];
   private showSourceText = false;
   private audioSourceKind: AudioSourceKind = 'file';
   private enqueuedFrameCount = 0;
@@ -154,6 +159,8 @@ export class PipelineImpl implements Pipeline {
     }
 
     this.running = true;
+    this.paused = false;
+    this.resumeWaiters = [];
     this.showSourceText = options.showSourceText ?? false;
     this.audioSourceKind = options.selection.kind;
     this.enqueuedFrameCount = 0;
@@ -169,6 +176,10 @@ export class PipelineImpl implements Pipeline {
     this.latencyMonitor.reset();
 
     this.unsubscribeIngestor = this.ingestor.onFrame((frame) => {
+      if (this.paused) {
+        return;
+      }
+
       this.enqueuedFrameCount += 1;
       if (this.sourceMonitor && shouldDuckSource(this.audioSourceKind)) {
         this.sourceMonitor.pushFrame(frame);
@@ -200,12 +211,37 @@ export class PipelineImpl implements Pipeline {
     });
   }
 
+  async pause(): Promise<void> {
+    if (!this.running || this.paused) {
+      return;
+    }
+
+    this.paused = true;
+    await this.ingestor.pause();
+  }
+
+  async resume(): Promise<void> {
+    if (!this.running || !this.paused) {
+      return;
+    }
+
+    this.paused = false;
+    this.releaseResumeWaiters();
+    await this.ingestor.resume();
+  }
+
+  isPaused(): boolean {
+    return this.paused;
+  }
+
   async stop(): Promise<void> {
     if (!this.running) {
       return;
     }
 
     this.running = false;
+    this.paused = false;
+    this.releaseResumeWaiters();
     this.sourceMonitor?.stop();
     await this.ingestor.stop();
     this.recognizer.flush();
@@ -271,14 +307,35 @@ export class PipelineImpl implements Pipeline {
 
   private async runFrameProcessor(): Promise<void> {
     while (this.running) {
+      await this.waitWhilePaused();
+
       const frame = await this.frameQueue.dequeue();
       if (!this.running) {
         break;
       }
 
+      await this.waitWhilePaused();
+
       this.recognizer.pushAudio(frame);
       this.processedFrameCount += 1;
     }
+  }
+
+  private async waitWhilePaused(): Promise<void> {
+    if (!this.paused) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      this.resumeWaiters.push(resolve);
+    });
+  }
+
+  private releaseResumeWaiters(): void {
+    for (const release of this.resumeWaiters) {
+      release();
+    }
+    this.resumeWaiters = [];
   }
 
   private async handleSourceSegment(segment: SourceSegment): Promise<void> {

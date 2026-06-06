@@ -36,13 +36,19 @@ vi.mock('./createVendorPipeline.js', () => ({
   }),
 }));
 
+const pipelinePause = vi.fn(async () => {});
+const pipelineResume = vi.fn(async () => {});
+
 vi.mock('@lingua-live/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@lingua-live/core')>();
   return {
     ...actual,
     createPipeline: vi.fn(() => ({
       start: vi.fn(async () => {}),
+      pause: pipelinePause,
+      resume: pipelineResume,
       stop: vi.fn(async () => {}),
+      isPaused: vi.fn(() => false),
       onSubtitle: vi.fn(() => () => {}),
       onUnrecognized: vi.fn(() => () => {}),
       onLatencyWarning: vi.fn(() => () => {}),
@@ -61,6 +67,8 @@ import { useInterpretationSession } from './useInterpretationSession.js';
 describe('useInterpretationSession audio wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pipelinePause.mockClear();
+    pipelineResume.mockClear();
     globalThis.localStorage?.setItem('lingua-live-consent-v1', 'accepted');
   });
 
@@ -77,6 +85,29 @@ describe('useInterpretationSession audio wiring', () => {
 
     expect(synthesizer.setEnabled).toHaveBeenCalledWith(true);
     expect(synthesizer.setVolume).toHaveBeenCalledWith(8);
+  });
+
+  it('pauses and resumes the pipeline with session controls', async () => {
+    const { result } = renderHook(() => useInterpretationSession());
+
+    act(() => {
+      result.current.setFilePath('/demo.wav');
+      result.current.setSourceKind('file');
+    });
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await act(async () => {
+      await result.current.pause();
+    });
+    expect(pipelinePause).toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.resume();
+    });
+    expect(pipelineResume).toHaveBeenCalled();
   });
 
   it('syncs recognizer language when source language changes', () => {

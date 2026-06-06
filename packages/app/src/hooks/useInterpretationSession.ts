@@ -185,15 +185,25 @@ export function useInterpretationSession() {
     }
   }, [consentOpen, filePath, pipeline, refreshLines, sessionManager, settings.showSourceText, sourceKind]);
 
-  const pause = useCallback(() => {
+  const pause = useCallback(async () => {
     setUnavailableControl(null);
-    sessionManager.pause();
-  }, [sessionManager]);
+    const transition = sessionManager.pause();
+    if (!transition.ok) {
+      return;
+    }
 
-  const resume = useCallback(() => {
+    await pipeline.pause();
+  }, [pipeline, sessionManager]);
+
+  const resume = useCallback(async () => {
     setUnavailableControl(null);
-    sessionManager.resume();
-  }, [sessionManager]);
+    const transition = sessionManager.resume();
+    if (!transition.ok) {
+      return;
+    }
+
+    await pipeline.resume();
+  }, [pipeline, sessionManager]);
 
   const stop = useCallback(async () => {
     setUnavailableControl(null);

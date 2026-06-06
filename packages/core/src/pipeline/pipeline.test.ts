@@ -72,6 +72,9 @@ function createMockIngestor(frames: AudioFrame[]): AudioIngestor {
     onFileEnd: () => () => {},
     onStartRejected: () => () => {},
     isRunning: () => running,
+    isPaused: () => false,
+    pause: async () => {},
+    resume: async () => {},
   };
 }
 

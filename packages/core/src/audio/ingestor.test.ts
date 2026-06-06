@@ -110,6 +110,38 @@ describe('FileAudioIngestor', () => {
     expect(ingestor.isRunning()).toBe(false);
   });
 
+  it('pauses and resumes file playback without losing position', async () => {
+    const wav = createTestWav(2_500);
+    const { ingestor } = createIngestor({
+      readFile: async () => wav,
+    });
+
+    const frames: number[] = [];
+    ingestor.onFrame((frame) => {
+      frames.push(frame.seq);
+    });
+
+    await ingestor.start({
+      sessionId: 'sess-1',
+      selection: { kind: 'file', filePath: '/audio.wav' },
+    });
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(frames).toEqual([0]);
+
+    await ingestor.pause();
+    expect(ingestor.isPaused()).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(frames).toEqual([0]);
+
+    await ingestor.resume();
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(frames).toEqual([0, 1, 2]);
+    expect(ingestor.isRunning()).toBe(false);
+  });
+
   it('paces frames to real time', async () => {
     const wav = createTestWav(2_000);
     const { ingestor, advanceNow } = createIngestor({

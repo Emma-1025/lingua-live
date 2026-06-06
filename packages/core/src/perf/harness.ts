@@ -94,12 +94,15 @@ export function createFramesForScripts(
 
 export function createStreamingIngestor(frames: AudioFrame[]): AudioIngestor {
   let frameHandler: ((frame: AudioFrame) => void) | undefined;
+  let paused = false;
 
   return {
     listSources: async () => [],
     start: async () => {
       for (const frame of frames) {
-        frameHandler?.(frame);
+        if (!paused) {
+          frameHandler?.(frame);
+        }
       }
     },
     stop: async () => {},
@@ -113,6 +116,13 @@ export function createStreamingIngestor(frames: AudioFrame[]): AudioIngestor {
     onFileEnd: () => () => {},
     onStartRejected: () => () => {},
     isRunning: () => true,
+    isPaused: () => paused,
+    pause: async () => {
+      paused = true;
+    },
+    resume: async () => {
+      paused = false;
+    },
   };
 }
 

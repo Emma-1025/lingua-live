@@ -75,4 +75,29 @@ describe('StreamAudioIngestor', () => {
     await ingestor.stop();
     expect(bridge.stopCapture).toHaveBeenCalled();
   });
+
+  it('suppresses frames while paused and forwards them after resume', async () => {
+    const bridge = createBridge();
+    const ingestor = new StreamAudioIngestor({ bridge });
+    const onFrame = vi.fn();
+    ingestor.onFrame(onFrame);
+
+    await ingestor.start({
+      sessionId: 'sess-1',
+      selection: { kind: 'microphone', deviceId: 'microphone:default' },
+    });
+
+    await ingestor.pause();
+    (bridge as NativeAudioCaptureBridge & { emitFrame: (frame: AudioFrame) => void }).emitFrame(
+      createFrame(0),
+    );
+    expect(onFrame).not.toHaveBeenCalled();
+
+    await ingestor.resume();
+    (bridge as NativeAudioCaptureBridge & { emitFrame: (frame: AudioFrame) => void }).emitFrame(
+      createFrame(1),
+    );
+    expect(onFrame).toHaveBeenCalledTimes(1);
+    expect(onFrame).toHaveBeenCalledWith(createFrame(1));
+  });
 });
