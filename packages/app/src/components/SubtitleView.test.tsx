@@ -31,7 +31,7 @@ describe('SubtitleView', () => {
     const liveRegion = screen.getByRole('log');
     expect(liveRegion).toHaveAttribute('aria-live', 'polite');
 
-    const zhLines = screen.getAllByText(/你好|世界/);
+    const zhLines = screen.getAllByRole('article');
     expect(zhLines[0]).toHaveTextContent('你好');
     expect(zhLines[1]).toHaveTextContent('世界');
   });
@@ -82,6 +82,34 @@ describe('SubtitleView', () => {
     expect(screen.getByText('（无法识别）')).toBeInTheDocument();
     expect(screen.getByText('未翻译')).toBeInTheDocument();
     expect(screen.getByText('✎已更正')).toBeInTheDocument();
+  });
+
+  it('announces finals through an assertive screen-reader region', () => {
+    const { container, rerender } = render(
+      <SubtitleView lines={[]} showSourceText={false} fontSizeLevel={2} />,
+    );
+
+    expect(container.querySelector('.sr-only')).toHaveAttribute('aria-live', 'assertive');
+
+    rerender(
+      <SubtitleView
+        lines={[
+          {
+            id: 'seg-final',
+            spokenIndex: 0,
+            sourceText: 'hello',
+            zhText: '你好',
+            status: 'final',
+            untranslated: false,
+            unrecognized: false,
+          },
+        ]}
+        showSourceText={false}
+        fontSizeLevel={2}
+      />,
+    );
+
+    expect(container.querySelector('.sr-only')).toHaveTextContent('你好');
   });
 
   it('applies the selected font-size level class', () => {
