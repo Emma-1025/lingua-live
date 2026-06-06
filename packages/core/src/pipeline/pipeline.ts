@@ -17,6 +17,7 @@ import type {
   ZhSegment,
 } from '../models.js';
 import { createLatencyMonitor, type LatencyMonitor } from '../perf/latencyMonitor.js';
+import { TUNED_CONTEXT_WINDOW_SIZE, TUNED_SEGMENT_MAP_RETENTION } from '../perf/tuning.js';
 import {
   createTranscriptStore,
   type TranscriptStore,
@@ -60,7 +61,14 @@ export interface PipelineConfig {
   frameQueueSize?: number;
   partialThrottleMs?: number;
   partialLoadThreshold?: number;
+  contextWindowSize?: number;
+  segmentMapRetention?: number;
   now?: () => number;
+}
+
+export interface PipelineMemorySnapshot {
+  contextEntries: number;
+  segmentMaps: number;
 }
 
 export interface Pipeline {
@@ -72,6 +80,9 @@ export interface Pipeline {
   getTranscriptStore(): TranscriptStore;
   getProcessedFrameCount(): number;
   getEnqueuedFrameCount(): number;
+  getDroppedFrameCount(): number;
+  getLatencyMonitor(): LatencyMonitor;
+  getMemorySnapshot(): PipelineMemorySnapshot;
 }
 
 type SubtitleHandler = (update: SubtitleUpdate) => void;
@@ -89,6 +100,8 @@ export class PipelineImpl implements Pipeline {
   private readonly frameQueue: BoundedAsyncQueue<import('../models.js').AudioFrame>;
   private readonly partialThrottleMs: number;
   private readonly partialLoadThreshold: number;
+  private readonly contextWindowSize: number;
+  private readonly segmentMapRetention: number;
   private readonly now: () => number;
 
   private readonly subtitleHandlers = new Set<SubtitleHandler>();
@@ -130,6 +143,8 @@ export class PipelineImpl implements Pipeline {
     });
     this.partialThrottleMs = config.partialThrottleMs ?? DEFAULT_PARTIAL_THROTTLE_MS;
     this.partialLoadThreshold = config.partialLoadThreshold ?? DEFAULT_PARTIAL_LOAD_THRESHOLD;
+    this.contextWindowSize = config.contextWindowSize ?? TUNED_CONTEXT_WINDOW_SIZE;
+    this.segmentMapRetention = config.segmentMapRetention ?? TUNED_SEGMENT_MAP_RETENTION;
     this.now = config.now ?? (() => Date.now());
   }
 
@@ -239,6 +254,21 @@ export class PipelineImpl implements Pipeline {
     return this.enqueuedFrameCount;
   }
 
+  getDroppedFrameCount(): number {
+    return Math.max(0, this.enqueuedFrameCount - this.processedFrameCount);
+  }
+
+  getLatencyMonitor(): LatencyMonitor {
+    return this.latencyMonitor;
+  }
+
+  getMemorySnapshot(): PipelineMemorySnapshot {
+    return {
+      contextEntries: this.contextEntries.length,
+      segmentMaps: this.capturedAtBySegment.size + this.partialLastEmittedAt.size,
+    };
+  }
+
   private async runFrameProcessor(): Promise<void> {
     while (this.running) {
       const frame = await this.frameQueue.dequeue();
@@ -278,6 +308,8 @@ export class PipelineImpl implements Pipeline {
       zhText: zh.zhText,
       spokenIndex: segment.spokenIndex,
     });
+    this.trimContextWindow();
+    this.trimSegmentMaps();
   }
 
   private async translateAndEmitPartial(segment: SourceSegment): Promise<void> {
@@ -349,7 +381,30 @@ export class PipelineImpl implements Pipeline {
     }
 
     this.partialLastEmittedAt.set(segmentId, current);
+    this.trimSegmentMaps();
     return true;
+  }
+
+  private trimContextWindow(): void {
+    while (this.contextEntries.length > this.contextWindowSize) {
+      const removed = this.contextEntries.shift();
+      if (removed) {
+        this.capturedAtBySegment.delete(removed.id);
+        this.partialLastEmittedAt.delete(removed.id);
+      }
+    }
+  }
+
+  private trimSegmentMaps(): void {
+    const maxEntries = this.segmentMapRetention;
+    while (this.capturedAtBySegment.size > maxEntries) {
+      const oldestKey = this.capturedAtBySegment.keys().next().value;
+      if (!oldestKey) {
+        break;
+      }
+      this.capturedAtBySegment.delete(oldestKey);
+      this.partialLastEmittedAt.delete(oldestKey);
+    }
   }
 }
 
