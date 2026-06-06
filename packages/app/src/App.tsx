@@ -56,11 +56,14 @@ export function App() {
         sourceLanguage={session.sourceLanguage}
         filePath={session.filePath}
         settings={session.settings}
+        llmSettings={session.llmSettings}
+        sessionState={session.sessionState}
         onClose={() => session.setSettingsOpen(false)}
         onSourceKindChange={session.setSourceKind}
         onFilePathChange={session.setFilePath}
         onSourceLanguageChange={session.setSourceLanguage}
         onSettingsChange={session.setSettings}
+        onLlmSettingsChange={session.setLlmSettings}
       />
 
       <StopExportDialog

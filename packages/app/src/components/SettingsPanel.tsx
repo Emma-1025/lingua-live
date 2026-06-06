@@ -1,10 +1,17 @@
 import type {
   AudioSourceKind,
+  LlmProvider,
+  LlmSettings,
   SessionSettings,
   SupportedSourceLanguage,
 } from '@lingua-live/core';
-import { DEFAULT_SOURCE_LANGUAGE } from '@lingua-live/core';
+import {
+  DEFAULT_SOURCE_LANGUAGE,
+  LLM_PROVIDER_OPTIONS,
+  LLM_PROVIDER_PRESETS,
+} from '@lingua-live/core';
 import { useEffect, useRef } from 'react';
+import type { SessionState } from '../types/session.js';
 
 export interface SettingsPanelProps {
   open: boolean;
@@ -12,11 +19,14 @@ export interface SettingsPanelProps {
   sourceLanguage: SupportedSourceLanguage;
   filePath?: string;
   settings: SessionSettings;
+  llmSettings: LlmSettings;
+  sessionState: SessionState;
   onClose: () => void;
   onSourceKindChange: (kind: AudioSourceKind) => void;
   onFilePathChange: (filePath: string) => void;
   onSourceLanguageChange: (language: SupportedSourceLanguage) => void;
   onSettingsChange: (settings: SessionSettings) => void;
+  onLlmSettingsChange: (settings: LlmSettings) => void;
 }
 
 const SOURCE_LANGUAGES: SupportedSourceLanguage[] = [
@@ -35,12 +45,34 @@ export function SettingsPanel({
   sourceLanguage,
   filePath,
   settings,
+  llmSettings,
+  sessionState,
   onClose,
   onSourceKindChange,
   onFilePathChange,
   onSourceLanguageChange,
   onSettingsChange,
+  onLlmSettingsChange,
 }: SettingsPanelProps) {
+  const llmLocked = sessionState !== 'stopped';
+  const cloudProvider = llmSettings.provider !== 'mock';
+  const preset =
+    llmSettings.provider === 'mock' ? undefined : LLM_PROVIDER_PRESETS[llmSettings.provider];
+
+  const updateLlm = (patch: Partial<LlmSettings>) => {
+    onLlmSettingsChange({ ...llmSettings, ...patch });
+  };
+
+  const onProviderChange = (provider: LlmProvider) => {
+    const nextPreset = provider === 'mock' ? undefined : LLM_PROVIDER_PRESETS[provider];
+    updateLlm({
+      provider,
+      baseUrl: nextPreset?.baseUrl,
+      translationModel: nextPreset?.translationModel,
+      correctionModel: nextPreset?.correctionModel,
+      ...(provider === 'mock' ? { apiKey: '' } : {}),
+    });
+  };
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -201,10 +233,66 @@ export function SettingsPanel({
       </section>
 
       <section>
-        <h3>模型 (DeepSeek)</h3>
-        <p className="settings-panel__hint">
-          翻译默认 {DEFAULT_SOURCE_LANGUAGE.toUpperCase()} · 在桌面后端配置 API 密钥
-        </p>
+        <h3>翻译模型 (LLM)</h3>
+        {llmLocked ? (
+          <p className="settings-panel__hint">会话进行中时无法更改模型设置，请先停止会话。</p>
+        ) : (
+          <p className="settings-panel__hint">
+            源语言默认 {DEFAULT_SOURCE_LANGUAGE.toUpperCase()} · 密钥仅保存在本机浏览器/桌面应用中
+          </p>
+        )}
+        <label>
+          提供商
+          <select
+            value={llmSettings.provider}
+            disabled={llmLocked}
+            onChange={(event) => onProviderChange(event.target.value as LlmProvider)}
+          >
+            {LLM_PROVIDER_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {cloudProvider ? (
+          <>
+            <label>
+              API 密钥
+              <input
+                type="password"
+                className="settings-panel__file"
+                autoComplete="off"
+                disabled={llmLocked}
+                value={llmSettings.apiKey}
+                placeholder={llmSettings.provider === 'deepseek' ? 'sk-...' : 'sk-...'}
+                onChange={(event) => updateLlm({ apiKey: event.target.value })}
+              />
+            </label>
+            <label>
+              API 地址（可选）
+              <input
+                type="text"
+                className="settings-panel__file"
+                disabled={llmLocked}
+                value={llmSettings.baseUrl ?? preset?.baseUrl ?? ''}
+                placeholder={preset?.baseUrl}
+                onChange={(event) => updateLlm({ baseUrl: event.target.value })}
+              />
+            </label>
+            <label>
+              翻译模型（可选）
+              <input
+                type="text"
+                className="settings-panel__file"
+                disabled={llmLocked}
+                value={llmSettings.translationModel ?? preset?.translationModel ?? ''}
+                placeholder={preset?.translationModel}
+                onChange={(event) => updateLlm({ translationModel: event.target.value })}
+              />
+            </label>
+          </>
+        ) : null}
       </section>
     </aside>
   );
