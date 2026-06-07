@@ -9,6 +9,7 @@ import {
 import { DEFAULT_SOURCE_LANGUAGE } from '@lingua-live/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_UI_SETTINGS } from '../components/SettingsPanel.js';
+import { initTauriHttpFetch } from '../desktop/tauriHttpFetch.js';
 import {
   createTauriCaptureBridge,
   createTauriFileAccess,
@@ -62,6 +63,7 @@ export function useInterpretationSession() {
       const [captureBridge, fileAccess] = await Promise.all([
         createTauriCaptureBridge(),
         createTauriFileAccess(),
+        initTauriHttpFetch(),
       ]);
 
       if (cancelled) {

@@ -62,6 +62,10 @@ export const DEFAULT_LLM_SETTINGS: LlmSettings = {
 
 export type LlmClientRole = 'translation' | 'correction';
 
+export interface LlmClientOptions {
+  fetchFn?: typeof fetch;
+}
+
 function resolvePreset(provider: Exclude<LlmProvider, 'mock'>): LlmProviderPreset {
   return LLM_PROVIDER_PRESETS[provider];
 }
@@ -80,6 +84,7 @@ function resolveModel(
 export function createLlmClientFromSettings(
   settings: LlmSettings,
   role: LlmClientRole = 'translation',
+  options?: LlmClientOptions,
 ): DeepSeekClient {
   if (settings.provider === 'mock') {
     return createMockDeepSeekClient();
@@ -100,6 +105,7 @@ export function createLlmClientFromSettings(
     apiKey,
     baseUrl,
     model,
+    fetchFn: options?.fetchFn,
   });
 }
 
@@ -107,9 +113,10 @@ export function createLlmClientFromSettings(
 export function createLlmClientWithEnvFallback(
   settings: LlmSettings,
   role: LlmClientRole = 'translation',
+  options?: LlmClientOptions,
 ): DeepSeekClient {
   if (settings.provider !== 'mock' && settings.apiKey.trim()) {
-    return createLlmClientFromSettings(settings, role);
+    return createLlmClientFromSettings(settings, role, options);
   }
 
   if (settings.provider === 'openai') {
@@ -119,5 +126,6 @@ export function createLlmClientWithEnvFallback(
   return createDeepSeekClientIfConfigured({
     model:
       role === 'translation' ? DEFAULT_DEEPSEEK_MODEL : DEFAULT_CORRECTION_MODEL,
+    fetchFn: options?.fetchFn,
   });
 }

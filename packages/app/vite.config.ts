@@ -40,6 +40,9 @@ export default defineConfig({
       process.env.LINGUA_VENDOR_MODE ?? 'mock',
     ),
     'process.env.DEEPSEEK_API_KEY': JSON.stringify(process.env.DEEPSEEK_API_KEY ?? ''),
+    'process.env.LINGUA_MOCK_ASR_SCENARIO': JSON.stringify(
+      process.env.LINGUA_MOCK_ASR_SCENARIO ?? '',
+    ),
   },
   build: {
     // Tauri Linux/macOS use WebKit — target must match (see tauri.app/start/frontend/vite).

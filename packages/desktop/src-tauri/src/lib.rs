@@ -55,6 +55,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
         .manage(Mutex::new(AppState {
             capture: CaptureManager::new(),
         }))
