@@ -43,4 +43,19 @@ describe('vendor factory', () => {
       }),
     ).toBeInstanceOf(RealAudioSynthesizer);
   });
+
+  it('uses real ASR and mock TTS when only Deepgram is configured', () => {
+    const services = createVendorServices({
+      config: {
+        mode: 'real',
+        deepgramApiKey: 'dg-test',
+        ttsBaseUrl: 'https://api.openai.com/v1',
+        ttsModel: 'tts-1',
+        ttsVoice: 'alloy',
+      },
+    });
+
+    expect(services.recognizer).toBeInstanceOf(DeepgramSpeechRecognizer);
+    expect(services.synthesizer).toBeInstanceOf(MockAudioSynthesizer);
+  });
 });

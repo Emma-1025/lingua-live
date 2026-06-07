@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { loadVendorConfig, VendorConfigError, assertRealVendorConfig } from './config.js';
+import {
+  assertRealAsrConfig,
+  assertRealVendorConfig,
+  loadVendorConfig,
+  VendorConfigError,
+} from './config.js';
 
 describe('loadVendorConfig', () => {
   it('defaults to mock mode without API keys', () => {
@@ -23,13 +28,23 @@ describe('loadVendorConfig', () => {
   });
 
   it('rejects unknown vendor mode', () => {
-    expect(() =>
-      loadVendorConfig({ LINGUA_VENDOR_MODE: 'staging' }),
-    ).toThrow(VendorConfigError);
+    expect(() => loadVendorConfig({ LINGUA_VENDOR_MODE: 'staging' })).toThrow(VendorConfigError);
   });
 });
 
 describe('assertRealVendorConfig', () => {
+  it('allows real ASR validation with only a Deepgram key', () => {
+    expect(() =>
+      assertRealAsrConfig({
+        mode: 'real',
+        deepgramApiKey: 'dg-test',
+        ttsBaseUrl: 'https://api.openai.com/v1',
+        ttsModel: 'tts-1',
+        ttsVoice: 'alloy',
+      }),
+    ).not.toThrow();
+  });
+
   it('requires Deepgram and TTS keys in real mode', () => {
     expect(() =>
       assertRealVendorConfig({

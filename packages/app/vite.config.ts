@@ -36,9 +36,13 @@ export default defineConfig({
   },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
   define: {
-    'process.env.LINGUA_VENDOR_MODE': JSON.stringify(
-      process.env.LINGUA_VENDOR_MODE ?? 'mock',
-    ),
+    'process.env.LINGUA_VENDOR_MODE': JSON.stringify(process.env.LINGUA_VENDOR_MODE ?? 'mock'),
+    'process.env.DEEPGRAM_API_KEY': JSON.stringify(process.env.DEEPGRAM_API_KEY ?? ''),
+    'process.env.TTS_API_KEY': JSON.stringify(process.env.TTS_API_KEY ?? ''),
+    'process.env.OPENAI_API_KEY': JSON.stringify(process.env.OPENAI_API_KEY ?? ''),
+    'process.env.TTS_BASE_URL': JSON.stringify(process.env.TTS_BASE_URL ?? ''),
+    'process.env.TTS_MODEL': JSON.stringify(process.env.TTS_MODEL ?? ''),
+    'process.env.TTS_VOICE': JSON.stringify(process.env.TTS_VOICE ?? ''),
     'process.env.DEEPSEEK_API_KEY': JSON.stringify(process.env.DEEPSEEK_API_KEY ?? ''),
     'process.env.LINGUA_MOCK_ASR_SCENARIO': JSON.stringify(
       process.env.LINGUA_MOCK_ASR_SCENARIO ?? '',

@@ -38,6 +38,7 @@ vi.mock('./createVendorPipeline.js', () => ({
 
 const pipelinePause = vi.fn(async () => {});
 const pipelineResume = vi.fn(async () => {});
+const pipelineStart = vi.fn(async () => {});
 
 const transcriptStore = {
   getEntries: vi.fn(() => [{ spokenIndex: 0, zhText: '你好', status: 'final' as const }]),
@@ -50,7 +51,7 @@ vi.mock('@lingua-live/core', async (importOriginal) => {
   return {
     ...actual,
     createPipeline: vi.fn(() => ({
-      start: vi.fn(async () => {}),
+      start: pipelineStart,
       pause: pipelinePause,
       resume: pipelineResume,
       stop: vi.fn(async () => {}),
@@ -70,6 +71,8 @@ import { useInterpretationSession } from './useInterpretationSession.js';
 describe('useInterpretationSession audio wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    pipelineStart.mockReset();
+    pipelineStart.mockResolvedValue(undefined);
     pipelinePause.mockClear();
     pipelineResume.mockClear();
     globalThis.localStorage?.setItem('lingua-live-consent-v1', 'accepted');
@@ -132,6 +135,25 @@ describe('useInterpretationSession audio wiring', () => {
     expect(result.current.transcriptCount).toBe(1);
     expect(result.current.canExport).toBe(true);
     expect(result.current.stopDialogOpen).toBe(true);
+  });
+
+  it('surfaces start failures and rolls the session back to stopped', async () => {
+    pipelineStart.mockRejectedValueOnce(
+      new Error('No system loopback or monitor device available'),
+    );
+    const { result } = renderHook(() => useInterpretationSession());
+
+    act(() => {
+      result.current.setFilePath('/movie.mp4');
+      result.current.setSourceKind('file');
+    });
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(result.current.sessionState).toBe('stopped');
+    expect(result.current.startError).toBe('No system loopback or monitor device available');
   });
 
   it('syncs recognizer language when source language changes', () => {

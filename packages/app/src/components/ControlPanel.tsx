@@ -4,6 +4,7 @@ export interface ControlPanelProps {
   sessionState: SessionState;
   latencyWarning: boolean;
   unavailableControl?: SessionControl | null;
+  startError?: string;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -21,6 +22,7 @@ export function ControlPanel({
   sessionState,
   latencyWarning,
   unavailableControl,
+  startError,
   onStart,
   onPause,
   onResume,
@@ -50,6 +52,12 @@ export function ControlPanel({
           <span className="control-panel__latency-ok">延迟正常</span>
         )}
       </div>
+
+      {startError ? (
+        <p className="control-panel__error" role="alert">
+          {startError}
+        </p>
+      ) : null}
 
       <div className="control-panel__actions">
         <button

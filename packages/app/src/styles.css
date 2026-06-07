@@ -640,6 +640,17 @@ input[type='range'] {
   color: #8ff0bf;
 }
 
+.control-panel__error {
+  flex: 1 1 18rem;
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(255, 124, 124, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 107, 107, 0.12);
+  color: #ffc2c2;
+  line-height: 1.4;
+}
+
 .control-panel__actions {
   display: flex;
   flex-wrap: wrap;

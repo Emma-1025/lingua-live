@@ -4,9 +4,12 @@ import type {
   LlmSettings,
   SessionSettings,
   SupportedSourceLanguage,
+  VendorConfig,
+  VendorMode,
 } from '@lingua-live/core';
 import {
   DEFAULT_SOURCE_LANGUAGE,
+  DEFAULT_VENDOR_CONFIG,
   LLM_PROVIDER_OPTIONS,
   LLM_PROVIDER_PRESETS,
 } from '@lingua-live/core';
@@ -20,6 +23,7 @@ export interface SettingsPanelProps {
   filePath?: string;
   settings: SessionSettings;
   llmSettings: LlmSettings;
+  vendorSettings?: VendorConfig;
   sessionState: SessionState;
   onClose: () => void;
   onSourceKindChange: (kind: AudioSourceKind) => void;
@@ -27,6 +31,7 @@ export interface SettingsPanelProps {
   onSourceLanguageChange: (language: SupportedSourceLanguage) => void;
   onSettingsChange: (settings: SessionSettings) => void;
   onLlmSettingsChange: (settings: LlmSettings) => void;
+  onVendorSettingsChange?: (settings: VendorConfig) => void;
 }
 
 const SOURCE_LANGUAGES: SupportedSourceLanguage[] = ['en', 'ja', 'ko', 'fr', 'de', 'es', 'zh'];
@@ -38,6 +43,7 @@ export function SettingsPanel({
   filePath,
   settings,
   llmSettings,
+  vendorSettings = DEFAULT_VENDOR_CONFIG,
   sessionState,
   onClose,
   onSourceKindChange,
@@ -45,14 +51,20 @@ export function SettingsPanel({
   onSourceLanguageChange,
   onSettingsChange,
   onLlmSettingsChange,
+  onVendorSettingsChange = () => undefined,
 }: SettingsPanelProps) {
   const llmLocked = sessionState !== 'stopped';
+  const vendorLocked = sessionState !== 'stopped';
   const cloudProvider = llmSettings.provider !== 'mock';
   const preset =
     llmSettings.provider === 'mock' ? undefined : LLM_PROVIDER_PRESETS[llmSettings.provider];
 
   const updateLlm = (patch: Partial<LlmSettings>) => {
     onLlmSettingsChange({ ...llmSettings, ...patch });
+  };
+
+  const updateVendor = (patch: Partial<VendorConfig>) => {
+    onVendorSettingsChange({ ...vendorSettings, ...patch });
   };
 
   const onProviderChange = (provider: LlmProvider) => {
@@ -155,7 +167,7 @@ export function SettingsPanel({
             type="text"
             className="settings-panel__file"
             value={filePath ?? ''}
-            placeholder="/path/to/audio.wav"
+            placeholder="/path/to/audio.wav, .mp4, .m4a, .mp3"
             onChange={(event) => onFilePathChange(event.target.value)}
           />
         ) : null}
@@ -240,6 +252,89 @@ export function SettingsPanel({
             }
           />
         </label>
+      </section>
+
+      <section className="settings-panel__section">
+        <h3>语音服务 (ASR/TTS)</h3>
+        {vendorLocked ? (
+          <p className="settings-panel__hint">会话进行中时无法更改语音服务，请先停止会话。</p>
+        ) : (
+          <p className="settings-panel__hint">
+            Deepgram 用于实时 ASR；TTS 密钥仅在启用中文语音输出时需要。
+          </p>
+        )}
+        <label className="settings-panel__field">
+          语音服务模式
+          <select
+            value={vendorSettings.mode}
+            disabled={vendorLocked}
+            onChange={(event) => updateVendor({ mode: event.target.value as VendorMode })}
+          >
+            <option value="mock">本地模拟（无需密钥）</option>
+            <option value="real">真实云服务（Deepgram ASR）</option>
+          </select>
+        </label>
+        {vendorSettings.mode === 'real' ? (
+          <>
+            <label className="settings-panel__field">
+              Deepgram API 密钥
+              <input
+                type="password"
+                className="settings-panel__file"
+                autoComplete="off"
+                disabled={vendorLocked}
+                value={vendorSettings.deepgramApiKey ?? ''}
+                placeholder="dg_..."
+                onChange={(event) => updateVendor({ deepgramApiKey: event.target.value })}
+              />
+            </label>
+            <label className="settings-panel__field">
+              TTS API 密钥（可选）
+              <input
+                type="password"
+                className="settings-panel__file"
+                autoComplete="off"
+                disabled={vendorLocked}
+                value={vendorSettings.ttsApiKey ?? ''}
+                placeholder="sk-..."
+                onChange={(event) => updateVendor({ ttsApiKey: event.target.value })}
+              />
+            </label>
+            <label className="settings-panel__field">
+              TTS API 地址
+              <input
+                type="text"
+                className="settings-panel__file"
+                disabled={vendorLocked}
+                value={vendorSettings.ttsBaseUrl}
+                placeholder={DEFAULT_VENDOR_CONFIG.ttsBaseUrl}
+                onChange={(event) => updateVendor({ ttsBaseUrl: event.target.value })}
+              />
+            </label>
+            <label className="settings-panel__field">
+              TTS 模型
+              <input
+                type="text"
+                className="settings-panel__file"
+                disabled={vendorLocked}
+                value={vendorSettings.ttsModel}
+                placeholder={DEFAULT_VENDOR_CONFIG.ttsModel}
+                onChange={(event) => updateVendor({ ttsModel: event.target.value })}
+              />
+            </label>
+            <label className="settings-panel__field">
+              TTS 音色
+              <input
+                type="text"
+                className="settings-panel__file"
+                disabled={vendorLocked}
+                value={vendorSettings.ttsVoice}
+                placeholder={DEFAULT_VENDOR_CONFIG.ttsVoice}
+                onChange={(event) => updateVendor({ ttsVoice: event.target.value })}
+              />
+            </label>
+          </>
+        ) : null}
       </section>
 
       <section className="settings-panel__section">

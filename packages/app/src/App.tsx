@@ -117,6 +117,7 @@ export function App() {
         sessionState={session.sessionState}
         latencyWarning={session.latencyWarning}
         unavailableControl={session.unavailableControl}
+        startError={session.startError}
         onStart={() => void session.start()}
         onPause={session.pause}
         onResume={session.resume}
@@ -131,6 +132,7 @@ export function App() {
         filePath={session.filePath}
         settings={session.settings}
         llmSettings={session.llmSettings}
+        vendorSettings={session.vendorSettings}
         sessionState={session.sessionState}
         onClose={session.closeSettings}
         onSourceKindChange={session.setSourceKind}
@@ -138,6 +140,7 @@ export function App() {
         onSourceLanguageChange={session.setSourceLanguage}
         onSettingsChange={session.setSettings}
         onLlmSettingsChange={session.setLlmSettings}
+        onVendorSettingsChange={session.setVendorSettings}
       />
 
       <StopExportDialog

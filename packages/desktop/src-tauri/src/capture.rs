@@ -4,12 +4,13 @@ use serde::Serialize;
 use std::sync::mpsc::{self, Sender};
 use std::sync::Mutex;
 use std::thread::{self, JoinHandle};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
 const TARGET_SAMPLE_RATE: u32 = 16_000;
 const MAX_FRAME_MS: u32 = 1_000;
 const MAX_FRAME_SAMPLES: usize = (TARGET_SAMPLE_RATE as usize * MAX_FRAME_MS as usize) / 1000;
+const STARTUP_TIMEOUT: Duration = Duration::from_secs(3);
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AudioSourceDto {
@@ -58,7 +59,9 @@ impl CaptureManager {
         let mut sources = Vec::new();
 
         if let Some(device) = host.default_input_device() {
-            let label = device.name().unwrap_or_else(|_| "Default microphone".to_string());
+            let label = device
+                .name()
+                .unwrap_or_else(|_| "Default microphone".to_string());
             sources.push(AudioSourceDto {
                 id: "microphone:default".to_string(),
                 label,
@@ -109,6 +112,7 @@ impl CaptureManager {
         let stream_config: cpal::StreamConfig = config.into();
 
         let (cmd_tx, cmd_rx) = mpsc::channel::<CaptureCommand>();
+        let (startup_tx, startup_rx) = mpsc::channel::<Result<(), String>>();
         let app_for_thread = app.clone();
         let session_for_thread = session_id.clone();
 
@@ -137,23 +141,44 @@ impl CaptureManager {
                     channels,
                     sample_rate,
                     frame_emitter,
-                    app,
+                    app.clone(),
                 ),
                 _ => Err("Unsupported sample format".to_string()),
             };
 
             let stream = match stream_result {
                 Ok(stream) => stream,
-                Err(_) => return,
+                Err(error) => {
+                    let _ = startup_tx.send(Err(error));
+                    let _ = app.emit("audio-source-lost", "device_disconnect");
+                    return;
+                }
             };
 
-            if stream.play().is_err() {
+            if let Err(error) = stream.play() {
+                let _ = startup_tx.send(Err(format!("Failed to start capture stream: {error}")));
+                let _ = app.emit("audio-source-lost", "device_disconnect");
                 return;
             }
 
+            let _ = startup_tx.send(Ok(()));
             let _ = cmd_rx.recv();
             drop(stream);
         });
+
+        match startup_rx.recv_timeout(STARTUP_TIMEOUT) {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => {
+                let _ = cmd_tx.send(CaptureCommand::Stop);
+                let _ = worker.join();
+                return Err(error);
+            }
+            Err(error) => {
+                let _ = cmd_tx.send(CaptureCommand::Stop);
+                let _ = worker.join();
+                return Err(format!("Timed out starting audio capture: {error}"));
+            }
+        }
 
         let mut guard = self.inner.lock().map_err(|e| e.to_string())?;
         guard.stop_tx = Some(cmd_tx);
@@ -253,10 +278,8 @@ fn resolve_device(
         if let Some(id) = device_id {
             if id != "microphone:default" {
                 if let Ok(index) = id.trim_start_matches("microphone:").parse::<usize>() {
-                    if let Some(device) = host
-                        .input_devices()
-                        .map_err(|e| e.to_string())?
-                        .nth(index)
+                    if let Some(device) =
+                        host.input_devices().map_err(|e| e.to_string())?.nth(index)
                     {
                         return Ok(device);
                     }
@@ -302,7 +325,6 @@ fn resolve_device(
                 })
                 .unwrap_or(false)
         })
-        .or_else(|| host.default_input_device())
         .ok_or_else(|| "No system loopback or monitor device available".to_string())
 }
 
@@ -313,7 +335,10 @@ where
 {
     let channel_count = channels as usize;
     if channel_count <= 1 {
-        return samples.iter().map(|sample| f32::from_sample(*sample)).collect();
+        return samples
+            .iter()
+            .map(|sample| f32::from_sample(*sample))
+            .collect();
     }
 
     samples

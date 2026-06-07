@@ -78,6 +78,41 @@ function createMockIngestor(frames: AudioFrame[]): AudioIngestor {
   };
 }
 
+function createFailingThenWorkingIngestor(frame: AudioFrame): AudioIngestor {
+  let frameHandler: ((frame: AudioFrame) => void) | undefined;
+  let running = false;
+  let startCount = 0;
+
+  return {
+    listSources: async () => [],
+    start: async () => {
+      startCount += 1;
+      if (startCount === 1) {
+        throw new Error('native capture failed');
+      }
+
+      running = true;
+      frameHandler?.(frame);
+    },
+    stop: async () => {
+      running = false;
+    },
+    onFrame: (handler) => {
+      frameHandler = handler;
+      return () => {
+        frameHandler = undefined;
+      };
+    },
+    onSourceLost: () => () => {},
+    onFileEnd: () => () => {},
+    onStartRejected: () => () => {},
+    isRunning: () => running,
+    isPaused: () => false,
+    pause: async () => {},
+    resume: async () => {},
+  };
+}
+
 function createMockDeepSeekClient(): DeepSeekClient {
   return {
     async *streamChatCompletion(messages) {
@@ -145,6 +180,35 @@ describe('Pipeline integration', () => {
     expect(subtitles.some((segment) => segment.status === 'final')).toBe(true);
     expect(pipeline.getTranscriptStore().getEntries()).toHaveLength(1);
     expect(pipeline.getTranscriptStore().getEntries()[0]?.sourceText).toBe('hello world');
+  });
+
+  it('rolls back failed starts so a later start can capture audio', async () => {
+    const frame = createFrame({
+      seq: 0,
+      durationMs: 100,
+      capturedAt: 1_000,
+      amplitude: 0.5,
+    });
+    const pipeline = createPipeline({
+      ingestor: createFailingThenWorkingIngestor(frame),
+      translator: new TranslatorImpl({ client: createMockDeepSeekClient() }),
+      correctionEngine: createCorrectionEngineStub(),
+    });
+
+    await expect(
+      pipeline.start({
+        sessionId: 'sess-1',
+        selection: { kind: 'system', deviceId: 'system:default' },
+      }),
+    ).rejects.toThrow('native capture failed');
+
+    await pipeline.start({
+      sessionId: 'sess-1',
+      selection: { kind: 'system', deviceId: 'system:default' },
+    });
+
+    expect(pipeline.getEnqueuedFrameCount()).toBe(1);
+    await pipeline.stop();
   });
 });
 

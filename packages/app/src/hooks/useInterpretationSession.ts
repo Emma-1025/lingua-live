@@ -5,15 +5,13 @@ import {
   type LlmSettings,
   type SessionSettings,
   type SupportedSourceLanguage,
+  type VendorConfig,
 } from '@lingua-live/core';
 import { DEFAULT_SOURCE_LANGUAGE } from '@lingua-live/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_UI_SETTINGS } from '../components/SettingsPanel.js';
 import { initTauriHttpFetch } from '../desktop/tauriHttpFetch.js';
-import {
-  createTauriCaptureBridge,
-  createTauriFileAccess,
-} from '../desktop/tauriCaptureBridge.js';
+import { createTauriCaptureBridge, createTauriFileAccess } from '../desktop/tauriCaptureBridge.js';
 import { exportTranscriptText } from '../lib/exportTranscript.js';
 import { loadLlmSettings, saveLlmSettings } from '../lib/llmSettingsStorage.js';
 import {
@@ -22,6 +20,7 @@ import {
   upsertZhSegment,
   type DisplaySubtitleLine,
 } from '../lib/subtitleState.js';
+import { loadVendorSettings, saveVendorSettings } from '../lib/vendorSettingsStorage.js';
 import type { SessionControl, SessionState } from '../types/session.js';
 import { createAppPipeline } from './createAppPipeline.js';
 import { createVendorPipelineParts } from './createVendorPipeline.js';
@@ -32,6 +31,24 @@ function hasConsent(): boolean {
   return globalThis.localStorage?.getItem(CONSENT_STORAGE_KEY) === 'accepted';
 }
 
+function formatStartError(error: unknown, sourceKind: AudioSourceKind, isDesktop: boolean): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (sourceKind === 'system' && !isDesktop) {
+    return '系统声音捕获需要桌面版。请启动桌面应用，或改用媒体文件。';
+  }
+
+  if (sourceKind === 'system' && /loopback|monitor/i.test(message)) {
+    return '未找到系统声音监视设备。请确认系统提供 monitor/loopback 输入，或改用媒体文件。';
+  }
+
+  if (sourceKind === 'file') {
+    return message || '无法读取或解码媒体文件。请确认文件路径和音频格式。';
+  }
+
+  return message || '无法启动音频捕获。请检查音频来源后重试。';
+}
+
 interface IngestorBridgeDeps {
   captureBridge?: Awaited<ReturnType<typeof createTauriCaptureBridge>>;
   readFile?: (filePath: string) => Promise<ArrayBuffer>;
@@ -40,7 +57,11 @@ interface IngestorBridgeDeps {
 
 export function useInterpretationSession() {
   const sessionManager = useMemo(() => new SessionManager(), []);
-  const vendorParts = useMemo(() => createVendorPipelineParts(), []);
+  const [vendorSettings, setVendorSettingsState] = useState<VendorConfig>(loadVendorSettings);
+  const vendorParts = useMemo(
+    () => createVendorPipelineParts({ config: vendorSettings }),
+    [vendorSettings],
+  );
   const ingestorDepsRef = useRef<IngestorBridgeDeps>({});
   const [ingestorReady, setIngestorReady] = useState(false);
   const [llmSettings, setLlmSettingsState] = useState<LlmSettings>(loadLlmSettings);
@@ -55,6 +76,11 @@ export function useInterpretationSession() {
   const setLlmSettings = useCallback((next: LlmSettings) => {
     setLlmSettingsState(next);
     saveLlmSettings(next);
+  }, []);
+
+  const setVendorSettings = useCallback((next: VendorConfig) => {
+    setVendorSettingsState(next);
+    saveVendorSettings(next);
   }, []);
 
   useEffect(() => {
@@ -95,15 +121,15 @@ export function useInterpretationSession() {
   const [settings, setSettings] = useState<SessionSettings>(DEFAULT_UI_SETTINGS);
   const [sourceKind, setSourceKind] = useState<AudioSourceKind>('file');
   const [filePath, setFilePath] = useState('');
-  const [sourceLanguage, setSourceLanguage] = useState<SupportedSourceLanguage>(
-    DEFAULT_SOURCE_LANGUAGE,
-  );
+  const [sourceLanguage, setSourceLanguage] =
+    useState<SupportedSourceLanguage>(DEFAULT_SOURCE_LANGUAGE);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [exportError, setExportError] = useState<string>();
   const [exportNotice, setExportNotice] = useState<string>();
   const [consentOpen, setConsentOpen] = useState(() => !hasConsent());
   const [unavailableControl, setUnavailableControl] = useState<SessionControl | null>(null);
+  const [startError, setStartError] = useState<string>();
   const [, setHighlightTick] = useState(0);
   const [stoppedTranscriptCount, setStoppedTranscriptCount] = useState(0);
   const [stoppedCanExport, setStoppedCanExport] = useState(false);
@@ -191,8 +217,15 @@ export function useInterpretationSession() {
     }
 
     setUnavailableControl(null);
+    setStartError(undefined);
     setExportError(undefined);
     setExportNotice(undefined);
+
+    if (!ingestorReady && sourceKind !== 'file') {
+      setStartError('音频设备仍在初始化，请稍后再试。');
+      return;
+    }
+
     linesMapRef.current.clear();
     refreshLines();
     sessionIdRef.current = createSessionId();
@@ -208,6 +241,9 @@ export function useInterpretationSession() {
     const hasAudioSource = sourceKind === 'file' ? filePath.trim().length > 0 : true;
     const transition = sessionManager.start({ hasAudioSource });
     if (!transition.ok) {
+      if (transition.reason === 'no_audio_source') {
+        setStartError('请先选择媒体文件，或切换到系统声音/麦克风。');
+      }
       return;
     }
 
@@ -217,10 +253,22 @@ export function useInterpretationSession() {
         selection,
         showSourceText: settings.showSourceText,
       });
-    } catch {
+    } catch (error) {
+      await pipeline.stop();
       sessionManager.stop();
+      setStartError(formatStartError(error, sourceKind, isDesktop));
     }
-  }, [consentOpen, filePath, pipeline, refreshLines, sessionManager, settings.showSourceText, sourceKind]);
+  }, [
+    consentOpen,
+    filePath,
+    ingestorReady,
+    isDesktop,
+    pipeline,
+    refreshLines,
+    sessionManager,
+    settings.showSourceText,
+    sourceKind,
+  ]);
 
   const pause = useCallback(async () => {
     setUnavailableControl(null);
@@ -297,6 +345,8 @@ export function useInterpretationSession() {
     setSettings,
     llmSettings,
     setLlmSettings,
+    vendorSettings,
+    setVendorSettings,
     sourceKind,
     setSourceKind,
     filePath,
@@ -309,6 +359,7 @@ export function useInterpretationSession() {
     stopDialogOpen,
     exportError,
     exportNotice,
+    startError,
     consentOpen,
     unavailableControl,
     acceptConsent,

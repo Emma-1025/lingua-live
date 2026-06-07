@@ -5,10 +5,7 @@ import {
   type UnrecognizedEvent,
 } from '../asr/recognizer.js';
 import { FileAudioIngestor, type AudioIngestor } from '../audio/ingestor.js';
-import {
-  createCorrectionEngine,
-  type CorrectionEngine,
-} from '../correct/correctionEngine.js';
+import { createCorrectionEngine, type CorrectionEngine } from '../correct/correctionEngine.js';
 import type {
   AudioSourceKind,
   AudioSourceSelection,
@@ -18,10 +15,7 @@ import type {
 } from '../models.js';
 import { createLatencyMonitor, type LatencyMonitor } from '../perf/latencyMonitor.js';
 import { TUNED_CONTEXT_WINDOW_SIZE, TUNED_SEGMENT_MAP_RETENTION } from '../perf/tuning.js';
-import {
-  createTranscriptStore,
-  type TranscriptStore,
-} from '../transcript/store.js';
+import { createTranscriptStore, type TranscriptStore } from '../transcript/store.js';
 import { createTranslator, type Translator } from '../translate/translator.js';
 import {
   shouldDuckSource,
@@ -127,8 +121,7 @@ export class PipelineImpl implements Pipeline {
 
   constructor(config: PipelineConfig = {}) {
     this.ingestor = config.ingestor ?? new FileAudioIngestor();
-    this.recognizer =
-      config.recognizer ?? createSpeechRecognizer(config.recognizerDeps ?? {});
+    this.recognizer = config.recognizer ?? createSpeechRecognizer(config.recognizerDeps ?? {});
     this.translator = config.translator ?? createTranslator();
     this.correctionEngine =
       config.correctionEngine ?? createCorrectionEngine({ translator: this.translator });
@@ -206,10 +199,16 @@ export class PipelineImpl implements Pipeline {
     });
 
     void this.runFrameProcessor();
-    await this.ingestor.start({
-      sessionId: options.sessionId,
-      selection: options.selection,
-    });
+
+    try {
+      await this.ingestor.start({
+        sessionId: options.sessionId,
+        selection: options.selection,
+      });
+    } catch (error) {
+      await this.stop();
+      throw error;
+    }
   }
 
   async pause(): Promise<void> {
@@ -416,10 +415,7 @@ export class PipelineImpl implements Pipeline {
     }
   }
 
-  private async emitSubtitleWithSideEffects(
-    segment: ZhSegment,
-    capturedAt: number,
-  ): Promise<void> {
+  private async emitSubtitleWithSideEffects(segment: ZhSegment, capturedAt: number): Promise<void> {
     const displayedAt = this.now();
     this.correctionEngine.recordDisplayed(segment, displayedAt);
 
@@ -444,9 +440,7 @@ export class PipelineImpl implements Pipeline {
   private shouldEmitPartial(segmentId: string): boolean {
     const occupancy = this.frameQueue.size / this.frameQueue.capacity;
     const throttleMs =
-      occupancy >= this.partialLoadThreshold
-        ? this.partialThrottleMs * 2
-        : this.partialThrottleMs;
+      occupancy >= this.partialLoadThreshold ? this.partialThrottleMs * 2 : this.partialThrottleMs;
     const lastEmittedAt = this.partialLastEmittedAt.get(segmentId) ?? 0;
     const current = this.now();
 

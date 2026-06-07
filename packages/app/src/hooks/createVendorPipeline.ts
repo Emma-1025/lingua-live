@@ -28,13 +28,21 @@ export interface VendorPipelineParts {
 }
 
 /** Builds vendor-backed recognizer/synthesizer; falls back to mocks when real keys are unavailable. */
+export interface CreateVendorPipelinePartsOptions {
+  config?: VendorConfig;
+  mockRecognizerDeps?: MockSpeechRecognizerDeps;
+}
+
 export function createVendorPipelineParts(
-  mockRecognizerDeps?: MockSpeechRecognizerDeps,
+  options: CreateVendorPipelinePartsOptions = {},
 ): VendorPipelineParts {
-  const recognizerDeps = resolveMockRecognizerDeps(mockRecognizerDeps);
+  const recognizerDeps = resolveMockRecognizerDeps(options.mockRecognizerDeps);
 
   try {
-    const services = createVendorServices({ mockRecognizerDeps: recognizerDeps });
+    const services = createVendorServices({
+      config: options.config,
+      mockRecognizerDeps: recognizerDeps,
+    });
     return {
       config: services.config,
       recognizer: services.recognizer,

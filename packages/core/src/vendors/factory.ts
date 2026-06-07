@@ -1,4 +1,7 @@
-import { createDeepgramSpeechRecognizer, type DeepgramSpeechRecognizerConfig } from '../asr/deepgramRecognizer.js';
+import {
+  createDeepgramSpeechRecognizer,
+  type DeepgramSpeechRecognizerConfig,
+} from '../asr/deepgramRecognizer.js';
 import {
   createSpeechRecognizer,
   type MockSpeechRecognizerDeps,
@@ -6,9 +9,17 @@ import {
 } from '../asr/recognizer.js';
 import type { AudioSynthesizer } from '../tts/synthesizer.js';
 import { createAudioSynthesizer, type MockAudioSynthesizerConfig } from '../tts/synthesizer.js';
-import { createRealAudioSynthesizer, type RealAudioSynthesizerConfig } from '../tts/realSynthesizer.js';
+import {
+  createRealAudioSynthesizer,
+  type RealAudioSynthesizerConfig,
+} from '../tts/realSynthesizer.js';
 import { createOpenAiTtsDriver } from '../tts/ttsDriver.js';
-import { assertRealVendorConfig, loadVendorConfig, type VendorConfig } from './config.js';
+import {
+  assertRealAsrConfig,
+  assertRealTtsConfig,
+  loadVendorConfig,
+  type VendorConfig,
+} from './config.js';
 
 export interface VendorServices {
   config: VendorConfig;
@@ -33,7 +44,7 @@ export function createVendorSpeechRecognizer(
     return createSpeechRecognizer(options.mockRecognizerDeps);
   }
 
-  assertRealVendorConfig(config);
+  assertRealAsrConfig(config);
   return createDeepgramSpeechRecognizer({
     apiKey: config.deepgramApiKey!,
     ...options.deepgramConfig,
@@ -48,7 +59,11 @@ export function createVendorAudioSynthesizer(
     return createAudioSynthesizer(options.mockSynthesizerConfig);
   }
 
-  assertRealVendorConfig(config);
+  if (!config.ttsApiKey) {
+    return createAudioSynthesizer(options.mockSynthesizerConfig);
+  }
+
+  assertRealTtsConfig(config);
   const driver =
     options.realSynthesizerConfig?.driver ??
     createOpenAiTtsDriver({
@@ -66,9 +81,7 @@ export function createVendorAudioSynthesizer(
   });
 }
 
-export function createVendorServices(
-  options: CreateVendorServicesOptions = {},
-): VendorServices {
+export function createVendorServices(options: CreateVendorServicesOptions = {}): VendorServices {
   const config = options.config ?? loadVendorConfig(options.env);
   return {
     config,

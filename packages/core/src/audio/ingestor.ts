@@ -58,6 +58,7 @@ export interface AudioIngestorDeps {
   readFile?: (filePath: string) => Promise<ArrayBuffer>;
   isFileAccessible?: (filePath: string) => Promise<boolean>;
   listDeviceSources?: () => AudioDeviceInfo[];
+  decodeFile?: (buffer: ArrayBuffer, filePath: string) => Float32Array | Promise<Float32Array>;
 }
 
 const DEFAULT_DEVICES: AudioDeviceInfo[] = [
@@ -86,6 +87,10 @@ export class FileAudioIngestor implements AudioIngestor {
   private readonly readFile: (filePath: string) => Promise<ArrayBuffer>;
   private readonly isFileAccessible: (filePath: string) => Promise<boolean>;
   private readonly listDeviceSources: () => AudioDeviceInfo[];
+  private readonly decodeFile: (
+    buffer: ArrayBuffer,
+    filePath: string,
+  ) => Float32Array | Promise<Float32Array>;
 
   private running = false;
   private paused = false;
@@ -105,14 +110,18 @@ export class FileAudioIngestor implements AudioIngestor {
     this.now = deps.now ?? (() => Date.now());
     this.setTimeoutFn = deps.setTimeoutFn ?? defaultSchedule;
     this.clearTimeoutFn = deps.clearTimeoutFn ?? defaultCancelSchedule;
-    this.readFile = deps.readFile ?? (async () => {
-      throw new SourceInaccessibleError('File reading is not configured');
-    });
+    this.readFile =
+      deps.readFile ??
+      (async () => {
+        throw new SourceInaccessibleError('File reading is not configured');
+      });
     this.isFileAccessible =
-      deps.isFileAccessible ?? (async () => {
+      deps.isFileAccessible ??
+      (async () => {
         throw new SourceInaccessibleError('File accessibility check is not configured');
       });
     this.listDeviceSources = deps.listDeviceSources ?? (() => DEFAULT_DEVICES);
+    this.decodeFile = deps.decodeFile ?? ((buffer) => decodeWavToMono16k(buffer));
   }
 
   async listSources(): Promise<AudioDeviceInfo[]> {
@@ -150,10 +159,13 @@ export class FileAudioIngestor implements AudioIngestor {
     let pcm: Float32Array;
     try {
       const buffer = await this.readFile(filePath);
-      pcm = decodeWavToMono16k(buffer);
+      pcm = await this.decodeFile(buffer, filePath);
     } catch (error) {
       this.emitStartRejected('source_inaccessible');
       if (error instanceof WavDecodeError) {
+        throw new SourceInaccessibleError(error.message);
+      }
+      if (error instanceof Error) {
         throw new SourceInaccessibleError(error.message);
       }
       throw error;
@@ -241,7 +253,9 @@ export class FileAudioIngestor implements AudioIngestor {
     }
   }
 
-  private validateSelection(selection: AudioSourceSelection | undefined): StartRejectionReason | null {
+  private validateSelection(
+    selection: AudioSourceSelection | undefined,
+  ): StartRejectionReason | null {
     if (!selection?.kind) {
       return 'no_source_selected';
     }
@@ -319,4 +333,8 @@ export function createAudioIngestor(deps?: AudioIngestorDeps): AudioIngestor {
 
 export type { NativeAudioCaptureBridge } from './captureBridge.js';
 export { StreamAudioIngestor } from './streamIngestor.js';
-export { SessionIngestor, createSessionIngestor, type SessionIngestorDeps } from './sessionIngestor.js';
+export {
+  SessionIngestor,
+  createSessionIngestor,
+  type SessionIngestorDeps,
+} from './sessionIngestor.js';

@@ -75,4 +75,21 @@ describe('ControlPanel', () => {
     expect(onPause).toHaveBeenCalledTimes(1);
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
+
+  it('shows start errors as an alert', () => {
+    render(
+      <ControlPanel
+        sessionState="stopped"
+        latencyWarning={false}
+        startError="未找到系统声音监视设备"
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent('未找到系统声音监视设备');
+  });
 });

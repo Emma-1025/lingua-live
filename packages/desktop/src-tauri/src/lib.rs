@@ -24,9 +24,7 @@ fn start_audio_capture(
     device_id: Option<String>,
 ) -> Result<(), String> {
     let guard = state.inner().lock().map_err(|e| e.to_string())?;
-    guard
-        .capture
-        .start(app, session_id, source_kind, device_id)
+    guard.capture.start(app, session_id, source_kind, device_id)
 }
 
 #[tauri::command]
@@ -42,7 +40,9 @@ fn read_audio_file(path: String) -> Result<Vec<u8>, String> {
 
 #[tauri::command]
 fn is_file_accessible(path: String) -> Result<bool, String> {
-    Ok(fs::metadata(path).map(|meta| meta.is_file()).unwrap_or(false))
+    Ok(fs::metadata(path)
+        .map(|meta| meta.is_file())
+        .unwrap_or(false))
 }
 
 #[tauri::command]

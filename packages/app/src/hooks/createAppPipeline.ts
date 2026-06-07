@@ -8,6 +8,7 @@ import {
   type NativeAudioCaptureBridge,
 } from '@lingua-live/core';
 import { getAppFetch } from '../desktop/tauriHttpFetch.js';
+import { decodeAudioFileToMono16k } from '../lib/decodeAudioFile.js';
 import type { VendorPipelineParts } from './createVendorPipeline.js';
 
 export interface CreateAppPipelineOptions {
@@ -37,6 +38,7 @@ export function createAppPipeline(options: CreateAppPipelineOptions) {
       captureBridge: options.captureBridge ?? undefined,
       readFile: options.readFile,
       isFileAccessible: options.isFileAccessible,
+      decodeFile: decodeAudioFileToMono16k,
     }),
     translator,
     correctionEngine: createCorrectionEngine({

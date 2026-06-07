@@ -16,11 +16,14 @@ describe('FileAudioIngestor', () => {
     vi.useRealTimers();
   });
 
-  function createIngestor(overrides: {
-    readFile?: (path: string) => Promise<ArrayBuffer>;
-    isFileAccessible?: (path: string) => Promise<boolean>;
-    now?: () => number;
-  } = {}) {
+  function createIngestor(
+    overrides: {
+      readFile?: (path: string) => Promise<ArrayBuffer>;
+      isFileAccessible?: (path: string) => Promise<boolean>;
+      decodeFile?: (buffer: ArrayBuffer, filePath: string) => Float32Array | Promise<Float32Array>;
+      now?: () => number;
+    } = {},
+  ) {
     let clock = 1_000;
     const now = overrides.now ?? (() => clock);
     const advanceNow = (ms: number) => {
@@ -32,6 +35,7 @@ describe('FileAudioIngestor', () => {
       now,
       readFile: overrides.readFile ?? (async () => wav500),
       isFileAccessible: overrides.isFileAccessible ?? (async () => true),
+      decodeFile: overrides.decodeFile,
     });
 
     return { ingestor, advanceNow, now };
@@ -107,6 +111,34 @@ describe('FileAudioIngestor', () => {
     await vi.runAllTimersAsync();
 
     expect(frames).toEqual([0, 1, 2]);
+    expect(ingestor.isRunning()).toBe(false);
+  });
+
+  it('uses a custom media decoder for MP4 and other non-WAV files', async () => {
+    const mediaBytes = new ArrayBuffer(16);
+    const decodedPcm = new Float32Array(TARGET_SAMPLE_RATE);
+    decodedPcm.fill(0.25);
+    const decodeFile = vi.fn(() => decodedPcm);
+    const { ingestor } = createIngestor({
+      readFile: async () => mediaBytes,
+      decodeFile,
+    });
+
+    const frames: number[] = [];
+    ingestor.onFrame((frame) => {
+      frames.push(frame.seq);
+      expect(frame.pcm.length).toBe(TARGET_SAMPLE_RATE);
+    });
+
+    await ingestor.start({
+      sessionId: 'sess-1',
+      selection: { kind: 'file', filePath: '/movie.mp4' },
+    });
+
+    await vi.runAllTimersAsync();
+
+    expect(decodeFile).toHaveBeenCalledWith(mediaBytes, '/movie.mp4');
+    expect(frames).toEqual([0]);
     expect(ingestor.isRunning()).toBe(false);
   });
 

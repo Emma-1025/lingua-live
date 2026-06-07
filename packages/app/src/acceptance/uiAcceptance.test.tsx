@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_LLM_SETTINGS } from '@lingua-live/core';
+import { DEFAULT_LLM_SETTINGS, DEFAULT_VENDOR_CONFIG } from '@lingua-live/core';
 import { DEFAULT_UI_SETTINGS } from '../components/SettingsPanel.js';
 import { SettingsPanel } from '../components/SettingsPanel.js';
 import { SubtitleView } from '../components/SubtitleView.js';
@@ -13,6 +13,7 @@ describe('UI acceptance pass', () => {
     const onSettingsChange = vi.fn();
     const onSourceKindChange = vi.fn();
     const onLlmSettingsChange = vi.fn();
+    const onVendorSettingsChange = vi.fn();
 
     const { rerender } = render(
       <SettingsPanel
@@ -22,6 +23,7 @@ describe('UI acceptance pass', () => {
         filePath=""
         settings={DEFAULT_UI_SETTINGS}
         llmSettings={DEFAULT_LLM_SETTINGS}
+        vendorSettings={DEFAULT_VENDOR_CONFIG}
         sessionState="stopped"
         onClose={vi.fn()}
         onSourceKindChange={onSourceKindChange}
@@ -29,6 +31,7 @@ describe('UI acceptance pass', () => {
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={onSettingsChange}
         onLlmSettingsChange={onLlmSettingsChange}
+        onVendorSettingsChange={onVendorSettingsChange}
       />,
     );
 
@@ -58,6 +61,9 @@ describe('UI acceptance pass', () => {
       expect.objectContaining({ provider: 'deepseek' }),
     );
 
+    await user.selectOptions(screen.getByLabelText('语音服务模式'), 'real');
+    expect(onVendorSettingsChange).toHaveBeenCalledWith(expect.objectContaining({ mode: 'real' }));
+
     rerender(
       <SettingsPanel
         open
@@ -66,6 +72,7 @@ describe('UI acceptance pass', () => {
         filePath="/talk.wav"
         settings={DEFAULT_UI_SETTINGS}
         llmSettings={{ ...DEFAULT_LLM_SETTINGS, provider: 'deepseek', apiKey: 'sk-test' }}
+        vendorSettings={{ ...DEFAULT_VENDOR_CONFIG, mode: 'real' }}
         sessionState="stopped"
         onClose={vi.fn()}
         onSourceKindChange={onSourceKindChange}
@@ -73,10 +80,17 @@ describe('UI acceptance pass', () => {
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={onSettingsChange}
         onLlmSettingsChange={onLlmSettingsChange}
+        onVendorSettingsChange={onVendorSettingsChange}
       />,
     );
 
     expect(screen.getByDisplayValue('/talk.wav')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Deepgram API 密钥'), {
+      target: { value: 'dg-test' },
+    });
+    expect(onVendorSettingsChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ deepgramApiKey: 'dg-test' }),
+    );
     await user.click(screen.getByLabelText('系统声音'));
     expect(onSourceKindChange).toHaveBeenCalledWith('system');
   });
@@ -163,9 +177,7 @@ describe('UI acceptance pass', () => {
       },
     ];
 
-    const { container } = render(
-      <SubtitleView lines={lines} showSourceText fontSizeLevel={2} />,
-    );
+    const { container } = render(<SubtitleView lines={lines} showSourceText fontSizeLevel={2} />);
 
     expect(container.querySelector('.sr-only')).toHaveTextContent('大型语料库');
     expect(screen.getByLabelText('已更正字幕：大型语料库')).toBeInTheDocument();
