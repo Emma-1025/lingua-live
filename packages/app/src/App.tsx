@@ -58,7 +58,7 @@ export function App() {
         settings={session.settings}
         llmSettings={session.llmSettings}
         sessionState={session.sessionState}
-        onClose={() => session.setSettingsOpen(false)}
+        onClose={session.closeSettings}
         onSourceKindChange={session.setSourceKind}
         onFilePathChange={session.setFilePath}
         onSourceLanguageChange={session.setSourceLanguage}

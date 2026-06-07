@@ -81,6 +81,37 @@ describe('UI acceptance pass', () => {
     expect(onSourceKindChange).toHaveBeenCalledWith('system');
   });
 
+  it('does not steal focus from provider select when parent re-renders', async () => {
+    const user = userEvent.setup();
+    const onLlmSettingsChange = vi.fn();
+    const baseProps = {
+      open: true,
+      sourceKind: 'file' as const,
+      sourceLanguage: 'en' as const,
+      filePath: '',
+      settings: DEFAULT_UI_SETTINGS,
+      llmSettings: DEFAULT_LLM_SETTINGS,
+      sessionState: 'stopped' as const,
+      onSourceKindChange: vi.fn(),
+      onFilePathChange: vi.fn(),
+      onSourceLanguageChange: vi.fn(),
+      onSettingsChange: vi.fn(),
+      onLlmSettingsChange,
+    };
+
+    const { rerender } = render(<SettingsPanel {...baseProps} onClose={vi.fn()} />);
+    const providerSelect = screen.getByLabelText('提供商');
+    await user.click(providerSelect);
+
+    rerender(<SettingsPanel {...baseProps} onClose={vi.fn()} />);
+
+    expect(document.activeElement).toBe(providerSelect);
+    await user.selectOptions(providerSelect, 'deepseek');
+    expect(onLlmSettingsChange).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'deepseek' }),
+    );
+  });
+
   it('closes the settings dialog with Escape and exposes keyboard focus', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

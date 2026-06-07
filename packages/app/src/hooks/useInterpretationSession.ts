@@ -149,12 +149,16 @@ export function useInterpretationSession() {
   }, [pipeline, refreshLines, sessionManager]);
 
   useEffect(() => {
+    if (settingsOpen) {
+      return;
+    }
+
     const interval = globalThis.setInterval(() => {
       setHighlightTick((value) => value + 1);
       refreshLines();
     }, 250);
     return () => globalThis.clearInterval(interval);
-  }, [refreshLines]);
+  }, [refreshLines, settingsOpen]);
 
   useEffect(() => {
     vendorParts.recognizer.setLanguage(sourceLanguage);
@@ -238,6 +242,10 @@ export function useInterpretationSession() {
     setExportError(undefined);
   }, []);
 
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+  }, []);
+
   const exportTranscript = useCallback(() => {
     const store = pipeline.getTranscriptStore();
     if (!store.canExport()) {
@@ -280,6 +288,7 @@ export function useInterpretationSession() {
     setSourceLanguage,
     settingsOpen,
     setSettingsOpen,
+    closeSettings,
     stopDialogOpen,
     exportError,
     consentOpen,
