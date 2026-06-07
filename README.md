@@ -1,5 +1,5 @@
 ﻿# LinguaLive
-[视频讲解: 面向直播、会议与桌面音频的实时中文传译工作台](https://www.bilibili.com/video/BV1wtEt6YEPD/?share_source=copy_web&vd_source=e02a0e5ae7bdd5649f3a969b7c5334b3)
+🎬 演示视频：[面向直播、会议与桌面音频的实时中文传译工作台](https://www.bilibili.com/video/BV1wtEt6YEPD/?share_source=copy_web&vd_source=e02a0e5ae7bdd5649f3a969b7c5334b3)
 
 AI simultaneous interpretation assistant with real-time Chinese subtitles. Captures English (or other source-language) audio, streams it through ASR → DeepSeek translation → optional Chinese TTS, and displays live subtitles with self-correction.
 
