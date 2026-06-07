@@ -33,7 +33,7 @@ describe('SubtitleView', () => {
 
     const zhLines = screen.getAllByRole('article');
     expect(zhLines[0]).toHaveTextContent('你好');
-    expect(zhLines[1]).toHaveTextContent('整句识别中…');
+    expect(zhLines[1]).toHaveTextContent('thinking...');
   });
 
   it('shows bilingual source lines when enabled', () => {

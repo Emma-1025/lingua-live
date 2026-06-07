@@ -116,7 +116,7 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
                   ) : null}
                 </p>
               ) : line.status === 'partial' ? (
-                <p className="subtitle-view__zh subtitle-view__zh--pending">整句识别中…</p>
+                <p className="subtitle-view__zh subtitle-view__zh--pending">thinking...</p>
               ) : null}
               {line.showCorrectionHighlight ? (
                 <span className="subtitle-view__badge" aria-hidden="true">
