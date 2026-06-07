@@ -45,6 +45,11 @@ fn is_file_accessible(path: String) -> Result<bool, String> {
     Ok(fs::metadata(path).map(|meta| meta.is_file()).unwrap_or(false))
 }
 
+#[tauri::command]
+fn write_transcript_file(path: String, content: String) -> Result<(), String> {
+    fs::write(path, content).map_err(|error| error.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Linux WebKit + some GPU drivers render a blank webview without this (tauri-apps/tauri#13074).
@@ -55,6 +60,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_http::init())
         .manage(Mutex::new(AppState {
             capture: CaptureManager::new(),
@@ -64,7 +70,8 @@ pub fn run() {
             start_audio_capture,
             stop_audio_capture,
             read_audio_file,
-            is_file_accessible
+            is_file_accessible,
+            write_transcript_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

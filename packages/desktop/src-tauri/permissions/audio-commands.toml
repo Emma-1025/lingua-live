@@ -7,4 +7,5 @@ commands.allow = [
   "stop_audio_capture",
   "read_audio_file",
   "is_file_accessible",
+  "write_transcript_file",
 ]

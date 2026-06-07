@@ -326,6 +326,10 @@ select {
   margin-top: 1rem;
 }
 
+.stop-export-dialog__notice {
+  color: #7dffb3;
+}
+
 .stop-export-dialog__error {
   color: #ff8f8f;
 }

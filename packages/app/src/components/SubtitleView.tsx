@@ -86,7 +86,7 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
                 ) : (
                   <>
                     {line.zhText}
-                    {line.untranslated ? (
+                    {line.untranslated && line.status === 'final' ? (
                       <span className="subtitle-view__untranslated">未翻译</span>
                     ) : null}
                   </>

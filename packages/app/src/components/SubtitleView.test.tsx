@@ -42,6 +42,28 @@ describe('SubtitleView', () => {
     expect(screen.getByText('world')).toBeInTheDocument();
   });
 
+  it('does not show the untranslated badge on partial lines', () => {
+    render(
+      <SubtitleView
+        lines={[
+          {
+            id: 'seg-partial',
+            spokenIndex: 0,
+            sourceText: 'Welcome',
+            zhText: 'Welcome',
+            status: 'partial',
+            untranslated: true,
+            unrecognized: false,
+          },
+        ]}
+        showSourceText={false}
+        fontSizeLevel={2}
+      />,
+    );
+
+    expect(screen.queryByText('未翻译')).not.toBeInTheDocument();
+  });
+
   it('dims partial lines and shows fallback states', () => {
     const lines: DisplaySubtitleLine[] = [
       {

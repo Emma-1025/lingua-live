@@ -14,6 +14,7 @@ import {
   createTauriCaptureBridge,
   createTauriFileAccess,
 } from '../desktop/tauriCaptureBridge.js';
+import { exportTranscriptText } from '../lib/exportTranscript.js';
 import { loadLlmSettings, saveLlmSettings } from '../lib/llmSettingsStorage.js';
 import {
   addUnrecognizedLine,
@@ -100,6 +101,7 @@ export function useInterpretationSession() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stopDialogOpen, setStopDialogOpen] = useState(false);
   const [exportError, setExportError] = useState<string>();
+  const [exportNotice, setExportNotice] = useState<string>();
   const [consentOpen, setConsentOpen] = useState(() => !hasConsent());
   const [unavailableControl, setUnavailableControl] = useState<SessionControl | null>(null);
   const [, setHighlightTick] = useState(0);
@@ -190,6 +192,7 @@ export function useInterpretationSession() {
 
     setUnavailableControl(null);
     setExportError(undefined);
+    setExportNotice(undefined);
     linesMapRef.current.clear();
     refreshLines();
     sessionIdRef.current = createSessionId();
@@ -253,33 +256,34 @@ export function useInterpretationSession() {
   const closeStopDialog = useCallback(() => {
     setStopDialogOpen(false);
     setExportError(undefined);
+    setExportNotice(undefined);
   }, []);
 
   const closeSettings = useCallback(() => {
     setSettingsOpen(false);
   }, []);
 
-  const exportTranscript = useCallback(() => {
+  const exportTranscript = useCallback(async () => {
     const store = stoppedTranscriptStoreRef.current ?? pipeline.getTranscriptStore();
     if (!store.canExport()) {
       setExportError('无可导出的字幕');
+      setExportNotice(undefined);
       return;
     }
 
-    try {
-      const text = store.exportToText();
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = 'lingua-live-transcript.txt';
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setExportError(undefined);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '导出失败';
-      setExportError(`导出失败：${message}`);
+    const result = await exportTranscriptText(store.exportToText());
+    if (!result.ok) {
+      if (result.cancelled) {
+        setExportError(undefined);
+        return;
+      }
+      setExportError(result.error);
+      setExportNotice(undefined);
+      return;
     }
+
+    setExportError(undefined);
+    setExportNotice(result.path ? `已保存到 ${result.path}` : '导出成功');
   }, [pipeline]);
 
   const durationMs =
@@ -304,6 +308,7 @@ export function useInterpretationSession() {
     closeSettings,
     stopDialogOpen,
     exportError,
+    exportNotice,
     consentOpen,
     unavailableControl,
     acceptConsent,
