@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-06-07
+
+- Fixed Deepgram ASR in browser and desktop builds by authenticating WebSocket connections with the `Sec-WebSocket-Protocol: token, <api_key>` subprotocol instead of a URL query token (which returned 401 and produced zero subtitles in real vendor mode).
+
 ## 0.3.1 - 2026-06-07
 
 - Replaced typed media paths in the app with a real file picker so WAV, MP3, M4A, MP4, AAC, OGG, and WebM files can be selected and streamed from browser/WebView file bytes.
