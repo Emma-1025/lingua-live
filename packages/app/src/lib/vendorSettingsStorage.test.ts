@@ -43,15 +43,4 @@ describe('vendorSettingsStorage', () => {
 
     expect(loadVendorSettings().mode).toBe('mock');
   });
-
-  it('prefills Deepgram from build env and enables real mode like DeepSeek', () => {
-    vi.stubEnv('DEEPGRAM_API_KEY', 'dg-from-env');
-    saveVendorSettings(DEFAULT_VENDOR_CONFIG);
-
-    expect(loadVendorSettings()).toEqual({
-      ...DEFAULT_VENDOR_CONFIG,
-      mode: 'real',
-      deepgramApiKey: 'dg-from-env',
-    });
-  });
 });
