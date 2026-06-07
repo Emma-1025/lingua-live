@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3 - 2026-06-07
+
+- Made the subtitle list scroll independently while the header and control bar stay fixed.
+- Translate complete sentences only (show `thinking...` while listening); avoids misleading fragment translations.
+- Enabled Windows system audio via WASAPI speaker loopback so **系统声音** works without Stereo Mix.
+- Expanded Linux/macOS loopback device detection and clearer settings hints when system audio is unavailable.
+
 ## 0.3.2 - 2026-06-07
 
 - Fixed Deepgram ASR in browser and desktop builds by authenticating WebSocket connections with the `Sec-WebSocket-Protocol: token, <api_key>` subprotocol instead of a URL query token (which returned 401 and produced zero subtitles in real vendor mode).

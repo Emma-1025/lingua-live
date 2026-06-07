@@ -74,6 +74,6 @@ jobs:
             | Linux | `.deb`, `.AppImage` |
 
             See [README](https://github.com/${{ github.repository }}/blob/main/README.md#desktop-build) for API key setup.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
