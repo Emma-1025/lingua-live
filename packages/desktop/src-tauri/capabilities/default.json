@@ -8,6 +8,11 @@
     "core:event:default",
     "core:event:allow-listen",
     "core:event:allow-emit",
-    "allow-audio-commands"
+    "allow-audio-commands",
+    "dialog:default",
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://api.deepseek.com/**" }]
+    }
   ]
 }

@@ -387,6 +387,22 @@ export class PipelineImpl implements Pipeline {
         await this.emitSubtitleWithSideEffects(partial, segment.startedAt);
       }
     } catch {
+      if (zhText.trim()) {
+        await this.emitSubtitleWithSideEffects(
+          {
+            id: segment.id,
+            sessionId: segment.sessionId,
+            sourceText: segment.text,
+            zhText,
+            status: 'partial',
+            spokenIndex: segment.spokenIndex,
+            untranslated: false,
+          },
+          segment.startedAt,
+        );
+        return;
+      }
+
       const fallback = {
         id: segment.id,
         sessionId: segment.sessionId,

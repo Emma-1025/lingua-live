@@ -72,6 +72,7 @@ export function App() {
         durationMs={session.durationMs}
         canExport={session.canExport}
         exportError={session.exportError}
+        exportNotice={session.exportNotice}
         onExport={session.exportTranscript}
         onClose={session.closeStopDialog}
       />

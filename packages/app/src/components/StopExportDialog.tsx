@@ -4,7 +4,8 @@ export interface StopExportDialogProps {
   durationMs: number;
   canExport: boolean;
   exportError?: string;
-  onExport: () => void;
+  exportNotice?: string;
+  onExport: () => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -21,6 +22,7 @@ export function StopExportDialog({
   durationMs,
   canExport,
   exportError,
+  exportNotice,
   onExport,
   onClose,
 }: StopExportDialogProps) {
@@ -35,6 +37,7 @@ export function StopExportDialog({
         共 {segmentCount} 条字幕，时长 {formatDuration(durationMs)}
       </p>
       {exportError ? <p className="stop-export-dialog__error">{exportError}</p> : null}
+      {exportNotice ? <p className="stop-export-dialog__notice">{exportNotice}</p> : null}
       <div className="stop-export-dialog__actions">
         {canExport ? (
           <button type="button" onClick={onExport}>

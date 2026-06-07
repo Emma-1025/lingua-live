@@ -7,6 +7,7 @@ import {
   type LlmSettings,
   type NativeAudioCaptureBridge,
 } from '@lingua-live/core';
+import { getAppFetch } from '../desktop/tauriHttpFetch.js';
 import type { VendorPipelineParts } from './createVendorPipeline.js';
 
 export interface CreateAppPipelineOptions {
@@ -18,8 +19,17 @@ export interface CreateAppPipelineOptions {
 }
 
 export function createAppPipeline(options: CreateAppPipelineOptions) {
-  const translationClient = createLlmClientWithEnvFallback(options.llmSettings, 'translation');
-  const correctionClient = createLlmClientWithEnvFallback(options.llmSettings, 'correction');
+  const llmClientOptions = { fetchFn: getAppFetch() };
+  const translationClient = createLlmClientWithEnvFallback(
+    options.llmSettings,
+    'translation',
+    llmClientOptions,
+  );
+  const correctionClient = createLlmClientWithEnvFallback(
+    options.llmSettings,
+    'correction',
+    llmClientOptions,
+  );
   const translator = createTranslator({ client: translationClient });
 
   return createPipeline({
