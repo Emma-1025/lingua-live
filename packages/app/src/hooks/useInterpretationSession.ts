@@ -1,6 +1,7 @@
 import {
   SessionManager,
   createSessionId,
+  type AudioDeviceInfo,
   type AudioSourceKind,
   type LlmSettings,
   type SessionSettings,
@@ -9,7 +10,10 @@ import {
 } from '@lingua-live/core';
 import { DEFAULT_SOURCE_LANGUAGE } from '@lingua-live/core';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_UI_SETTINGS } from '../components/SettingsPanel.js';
+import {
+  DEFAULT_UI_SETTINGS,
+  type SelectedMediaFileInfo,
+} from '../components/SettingsPanel.js';
 import { initTauriHttpFetch } from '../desktop/tauriHttpFetch.js';
 import { createTauriCaptureBridge, createTauriFileAccess } from '../desktop/tauriCaptureBridge.js';
 import { exportTranscriptText } from '../lib/exportTranscript.js';
@@ -55,6 +59,29 @@ interface IngestorBridgeDeps {
   isFileAccessible?: (filePath: string) => Promise<boolean>;
 }
 
+interface NativeSourceAvailability {
+  system: boolean;
+  microphone: boolean;
+}
+
+const SELECTED_MEDIA_FILE_SCHEME = 'selected-media://';
+const NO_NATIVE_SOURCE_AVAILABILITY: NativeSourceAvailability = {
+  system: false,
+  microphone: false,
+};
+
+function createSelectedMediaFilePath(file: File): string {
+  const safeName = encodeURIComponent(file.name || 'media-file');
+  return `${SELECTED_MEDIA_FILE_SCHEME}${file.lastModified}-${file.size}/${safeName}`;
+}
+
+function toNativeSourceAvailability(sources: AudioDeviceInfo[]): NativeSourceAvailability {
+  return {
+    system: sources.some((source) => source.kind === 'system'),
+    microphone: sources.some((source) => source.kind === 'microphone'),
+  };
+}
+
 export function useInterpretationSession() {
   const sessionManager = useMemo(() => new SessionManager(), []);
   const [vendorSettings, setVendorSettingsState] = useState<VendorConfig>(loadVendorSettings);
@@ -63,15 +90,47 @@ export function useInterpretationSession() {
     [vendorSettings],
   );
   const ingestorDepsRef = useRef<IngestorBridgeDeps>({});
+  const selectedMediaFileRef = useRef<File | null>(null);
+  const selectedMediaFilePathRef = useRef('');
+  const readMediaFile = useCallback(async (filePath: string) => {
+    const selectedFile = selectedMediaFileRef.current;
+    if (selectedFile && filePath === selectedMediaFilePathRef.current) {
+      return selectedFile.arrayBuffer();
+    }
+
+    const readNativeFile = ingestorDepsRef.current.readFile;
+    if (readNativeFile) {
+      return readNativeFile(filePath);
+    }
+
+    throw new Error('请使用“选择媒体文件”按钮选择 WAV、MP4、M4A 或 MP3 文件。');
+  }, []);
+  const isMediaFileAccessible = useCallback(async (filePath: string) => {
+    if (selectedMediaFileRef.current && filePath === selectedMediaFilePathRef.current) {
+      return true;
+    }
+
+    const isNativeFileAccessible = ingestorDepsRef.current.isFileAccessible;
+    if (isNativeFileAccessible) {
+      return isNativeFileAccessible(filePath);
+    }
+
+    return false;
+  }, []);
   const [ingestorReady, setIngestorReady] = useState(false);
   const [llmSettings, setLlmSettingsState] = useState<LlmSettings>(loadLlmSettings);
   const [pipeline, setPipeline] = useState(() =>
     createAppPipeline({
       llmSettings: loadLlmSettings(),
       vendorParts,
+      readFile: readMediaFile,
+      isFileAccessible: isMediaFileAccessible,
     }),
   );
   const [isDesktop, setIsDesktop] = useState(false);
+  const [nativeSourceAvailability, setNativeSourceAvailability] =
+    useState<NativeSourceAvailability>(NO_NATIVE_SOURCE_AVAILABILITY);
+  const [nativeCaptureError, setNativeCaptureError] = useState<string>();
 
   const setLlmSettings = useCallback((next: LlmSettings) => {
     setLlmSettingsState(next);
@@ -92,6 +151,15 @@ export function useInterpretationSession() {
         createTauriFileAccess(),
         initTauriHttpFetch(),
       ]);
+      let availableSources: AudioDeviceInfo[] = [];
+      let sourceListError: string | undefined;
+      if (captureBridge) {
+        try {
+          availableSources = await captureBridge.listSources();
+        } catch (error) {
+          sourceListError = error instanceof Error ? error.message : String(error);
+        }
+      }
 
       if (cancelled) {
         return;
@@ -103,6 +171,8 @@ export function useInterpretationSession() {
         isFileAccessible: fileAccess?.isFileAccessible,
       };
       setIsDesktop(Boolean(captureBridge));
+      setNativeSourceAvailability(toNativeSourceAvailability(availableSources));
+      setNativeCaptureError(sourceListError);
       setIngestorReady(true);
     })();
 
@@ -120,7 +190,9 @@ export function useInterpretationSession() {
   const [latencyWarning, setLatencyWarning] = useState(false);
   const [settings, setSettings] = useState<SessionSettings>(DEFAULT_UI_SETTINGS);
   const [sourceKind, setSourceKind] = useState<AudioSourceKind>('file');
-  const [filePath, setFilePath] = useState('');
+  const [filePath, setFilePathState] = useState('');
+  const [selectedMediaFile, setSelectedMediaFileInfo] =
+    useState<SelectedMediaFileInfo | null>(null);
   const [sourceLanguage, setSourceLanguage] =
     useState<SupportedSourceLanguage>(DEFAULT_SOURCE_LANGUAGE);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -151,13 +223,13 @@ export function useInterpretationSession() {
         llmSettings,
         vendorParts,
         captureBridge: ingestorDepsRef.current.captureBridge,
-        readFile: ingestorDepsRef.current.readFile,
-        isFileAccessible: ingestorDepsRef.current.isFileAccessible,
+        readFile: readMediaFile,
+        isFileAccessible: isMediaFileAccessible,
       }),
     );
     // sessionState is intentionally omitted: rebuilding when a session ends would
     // reset the transcript before the stop/export dialog can read it.
-  }, [ingestorReady, llmSettings, vendorParts]);
+  }, [ingestorReady, isMediaFileAccessible, llmSettings, readMediaFile, vendorParts]);
 
   useEffect(() => {
     const unsubscribeSubtitle = pipeline.onSubtitle((update) => {
@@ -211,6 +283,36 @@ export function useInterpretationSession() {
     setConsentOpen(false);
   }, []);
 
+  const setFilePath = useCallback((nextFilePath: string) => {
+    selectedMediaFileRef.current = null;
+    selectedMediaFilePathRef.current = '';
+    setSelectedMediaFileInfo(null);
+    setFilePathState(nextFilePath);
+  }, []);
+
+  const setMediaFile = useCallback((file: File | null) => {
+    if (!file) {
+      selectedMediaFileRef.current = null;
+      selectedMediaFilePathRef.current = '';
+      setSelectedMediaFileInfo(null);
+      setFilePathState('');
+      return;
+    }
+
+    const nextFilePath = createSelectedMediaFilePath(file);
+    selectedMediaFileRef.current = file;
+    selectedMediaFilePathRef.current = nextFilePath;
+    setSelectedMediaFileInfo({
+      name: file.name || '媒体文件',
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified,
+    });
+    setFilePathState(nextFilePath);
+    setSourceKind('file');
+    setStartError(undefined);
+  }, []);
+
   const start = useCallback(async () => {
     if (consentOpen) {
       return;
@@ -223,6 +325,27 @@ export function useInterpretationSession() {
 
     if (!ingestorReady && sourceKind !== 'file') {
       setStartError('音频设备仍在初始化，请稍后再试。');
+      return;
+    }
+
+    if (sourceKind === 'system' && !nativeSourceAvailability.system) {
+      setStartError(
+        isDesktop
+          ? '未找到系统声音监视设备。请在系统音频设置中启用 monitor/loopback 输入，或改用媒体文件。'
+          : '系统声音捕获需要桌面版。请启动桌面应用，或改用媒体文件。',
+      );
+      return;
+    }
+
+    if (sourceKind === 'microphone' && !nativeSourceAvailability.microphone) {
+      setStartError(
+        isDesktop ? '未检测到可用麦克风输入设备。' : '麦克风捕获需要桌面版。请启动桌面应用。',
+      );
+      return;
+    }
+
+    if (vendorParts.setupError) {
+      setStartError(vendorParts.setupError);
       return;
     }
 
@@ -263,11 +386,14 @@ export function useInterpretationSession() {
     filePath,
     ingestorReady,
     isDesktop,
+    nativeSourceAvailability.microphone,
+    nativeSourceAvailability.system,
     pipeline,
     refreshLines,
     sessionManager,
     settings.showSourceText,
     sourceKind,
+    vendorParts.setupError,
   ]);
 
   const pause = useCallback(async () => {
@@ -351,6 +477,11 @@ export function useInterpretationSession() {
     setSourceKind,
     filePath,
     setFilePath,
+    selectedMediaFile,
+    setMediaFile,
+    systemAudioAvailable: nativeSourceAvailability.system,
+    microphoneAvailable: nativeSourceAvailability.microphone,
+    nativeCaptureError,
     sourceLanguage,
     setSourceLanguage,
     settingsOpen,

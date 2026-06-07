@@ -56,6 +56,23 @@ describe('StreamAudioIngestor', () => {
     ).rejects.toBeInstanceOf(SourceInaccessibleError);
   });
 
+  it('preserves native capture rejection messages from Tauri', async () => {
+    const ingestor = new StreamAudioIngestor({
+      bridge: createBridge({
+        startCapture: vi
+          .fn()
+          .mockRejectedValue('No system loopback or monitor device available'),
+      }),
+    });
+
+    await expect(
+      ingestor.start({
+        sessionId: 'sess-1',
+        selection: { kind: 'system', deviceId: 'system:default' },
+      }),
+    ).rejects.toThrow('No system loopback or monitor device available');
+  });
+
   it('forwards frames from the native bridge', async () => {
     const bridge = createBridge();
     const ingestor = new StreamAudioIngestor({ bridge });

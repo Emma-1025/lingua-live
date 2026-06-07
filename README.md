@@ -6,7 +6,7 @@ AI simultaneous interpretation assistant with real-time Chinese subtitles. Captu
 
 ```bash
 npm install
-npm test                  # 137 unit/integration tests (Vitest)
+npm test                  # unit/integration tests (Vitest)
 npm run build             # build core + app
 npm run dev               # web UI at http://localhost:5173
 npm run dev:desktop       # Tauri desktop (system/mic capture)
@@ -59,7 +59,8 @@ Audio Ingestor → Speech Recognizer → Translator (DeepSeek)
 ```
 
 - **File / system / microphone** sources via `SessionIngestor`
-- **Media files** support WAV directly and MP4/M4A/MP3 through the browser/WebView media decoder when the audio track codec is available on the platform
+- **Media files** are selected with the app file picker and support WAV directly plus MP3/M4A/MP4/AAC/OGG/WebM through the browser/WebView media decoder when the platform has the codec
+- **System audio** capture requires the desktop shell and an OS-exposed monitor/loopback input. If Linux/PipeWire/PulseAudio does not expose one, the app disables system audio and media-file import remains the portable fallback.
 - **Partial subtitles** throttled under load; frames are never dropped (bounded queue + back-pressure)
 - **Self-correction** when ASR revises an earlier hypothesis (e.g. corps → corpus)
 - **Latency monitor** warns when p95 partial e2e exceeds 5 s
@@ -105,8 +106,8 @@ cd packages/desktop && npx tauri icon app-icon.png
 Push a version tag to build installers for macOS (Intel + Apple Silicon), Windows, and Linux:
 
 ```bash
-git tag app-v0.3.0
-git push origin app-v0.3.0
+git tag app-v0.3.1
+git push origin app-v0.3.1
 ```
 
 The `release-desktop` workflow uploads draft release assets. For signed/notarized macOS or Windows builds, configure the signing secrets documented in [Tauri’s GitHub pipeline guide](https://v2.tauri.app/distribute/pipelines/github/).

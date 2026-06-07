@@ -25,6 +25,7 @@ export interface VendorPipelineParts {
   recognizer: ReturnType<typeof createVendorServices>['recognizer'];
   synthesizer: ReturnType<typeof createVendorServices>['synthesizer'];
   sourceMonitor: ReturnType<typeof createWebAudioSourceMonitor>;
+  setupError?: string;
 }
 
 /** Builds vendor-backed recognizer/synthesizer; falls back to mocks when real keys are unavailable. */
@@ -49,7 +50,7 @@ export function createVendorPipelineParts(
       synthesizer: services.synthesizer,
       sourceMonitor: createWebAudioSourceMonitor(),
     };
-  } catch {
+  } catch (error) {
     const services = createVendorServices({
       config: { ...loadVendorConfig({ LINGUA_VENDOR_MODE: 'mock' }), mode: 'mock' },
       mockRecognizerDeps: recognizerDeps,
@@ -60,6 +61,10 @@ export function createVendorPipelineParts(
       recognizer: services.recognizer,
       synthesizer: services.synthesizer,
       sourceMonitor: createWebAudioSourceMonitor(),
+      setupError:
+        error instanceof Error
+          ? error.message
+          : '无法初始化语音服务，请检查 Deepgram / TTS 设置。',
     };
   }
 }

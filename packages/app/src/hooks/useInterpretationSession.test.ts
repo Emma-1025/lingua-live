@@ -116,6 +116,55 @@ describe('useInterpretationSession audio wiring', () => {
     expect(pipelineResume).toHaveBeenCalled();
   });
 
+  it('starts with the selected browser media file instead of a typed path', async () => {
+    const { result } = renderHook(() => useInterpretationSession());
+    const mediaFile = new File(['media-bytes'], 'clip.mp4', { type: 'video/mp4' });
+
+    act(() => {
+      result.current.setMediaFile(mediaFile);
+    });
+
+    expect(result.current.sourceKind).toBe('file');
+    expect(result.current.selectedMediaFile).toEqual(
+      expect.objectContaining({ name: 'clip.mp4', size: mediaFile.size, type: 'video/mp4' }),
+    );
+    expect(result.current.filePath).toMatch(/^selected-media:\/\//);
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(pipelineStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selection: {
+          kind: 'file',
+          filePath: expect.stringMatching(/^selected-media:\/\/.*clip\.mp4$/),
+        },
+      }),
+    );
+  });
+
+  it('blocks system audio before native capture when no monitor source is available', async () => {
+    const { result } = renderHook(() => useInterpretationSession());
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    act(() => {
+      result.current.setSourceKind('system');
+    });
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(pipelineStart).not.toHaveBeenCalled();
+    expect(result.current.startError).toBe(
+      '系统声音捕获需要桌面版。请启动桌面应用，或改用媒体文件。',
+    );
+  });
+
   it('preserves transcript count for the stop dialog after stopping', async () => {
     const { result } = renderHook(() => useInterpretationSession());
 

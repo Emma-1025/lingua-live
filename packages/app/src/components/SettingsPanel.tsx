@@ -21,6 +21,10 @@ export interface SettingsPanelProps {
   sourceKind: AudioSourceKind;
   sourceLanguage: SupportedSourceLanguage;
   filePath?: string;
+  selectedMediaFile?: SelectedMediaFileInfo | null;
+  systemAudioAvailable?: boolean;
+  microphoneAvailable?: boolean;
+  nativeCaptureError?: string;
   settings: SessionSettings;
   llmSettings: LlmSettings;
   vendorSettings?: VendorConfig;
@@ -28,19 +32,45 @@ export interface SettingsPanelProps {
   onClose: () => void;
   onSourceKindChange: (kind: AudioSourceKind) => void;
   onFilePathChange: (filePath: string) => void;
+  onMediaFileChange?: (file: File | null) => void;
   onSourceLanguageChange: (language: SupportedSourceLanguage) => void;
   onSettingsChange: (settings: SessionSettings) => void;
   onLlmSettingsChange: (settings: LlmSettings) => void;
   onVendorSettingsChange?: (settings: VendorConfig) => void;
 }
 
+export interface SelectedMediaFileInfo {
+  name: string;
+  size: number;
+  type?: string;
+  lastModified?: number;
+}
+
 const SOURCE_LANGUAGES: SupportedSourceLanguage[] = ['en', 'ja', 'ko', 'fr', 'de', 'es', 'zh'];
+const MEDIA_FILE_ACCEPT =
+  'audio/*,video/mp4,video/quicktime,video/webm,.wav,.mp3,.m4a,.mp4,.aac,.flac,.ogg,.webm';
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export function SettingsPanel({
   open,
   sourceKind,
   sourceLanguage,
   filePath,
+  selectedMediaFile,
+  systemAudioAvailable = true,
+  microphoneAvailable = true,
+  nativeCaptureError,
   settings,
   llmSettings,
   vendorSettings = DEFAULT_VENDOR_CONFIG,
@@ -48,6 +78,7 @@ export function SettingsPanel({
   onClose,
   onSourceKindChange,
   onFilePathChange,
+  onMediaFileChange = () => undefined,
   onSourceLanguageChange,
   onSettingsChange,
   onLlmSettingsChange,
@@ -139,7 +170,9 @@ export function SettingsPanel({
           <input
             type="radio"
             name="source-kind"
+            aria-label="系统声音"
             checked={sourceKind === 'system'}
+            disabled={sessionState !== 'stopped' || !systemAudioAvailable}
             onChange={() => onSourceKindChange('system')}
           />
           系统声音
@@ -148,7 +181,9 @@ export function SettingsPanel({
           <input
             type="radio"
             name="source-kind"
+            aria-label="麦克风"
             checked={sourceKind === 'microphone'}
+            disabled={sessionState !== 'stopped' || !microphoneAvailable}
             onChange={() => onSourceKindChange('microphone')}
           />
           麦克风
@@ -162,14 +197,62 @@ export function SettingsPanel({
           />
           媒体文件
         </label>
+        {!systemAudioAvailable ? (
+          <p className="settings-panel__hint">
+            系统声音不可用：需要桌面版，并且系统必须暴露 monitor/loopback 输入设备。
+          </p>
+        ) : null}
+        {!microphoneAvailable ? (
+          <p className="settings-panel__hint">未检测到可用麦克风输入设备。</p>
+        ) : null}
+        {nativeCaptureError ? (
+          <p className="settings-panel__hint">音频设备检测失败：{nativeCaptureError}</p>
+        ) : null}
         {sourceKind === 'file' ? (
-          <input
-            type="text"
-            className="settings-panel__file"
-            value={filePath ?? ''}
-            placeholder="/path/to/audio.wav, .mp4, .m4a, .mp3"
-            onChange={(event) => onFilePathChange(event.target.value)}
-          />
+          <div className="settings-panel__media">
+            <label className="settings-panel__file-picker">
+              <span>选择媒体文件</span>
+              <input
+                type="file"
+                accept={MEDIA_FILE_ACCEPT}
+                disabled={sessionState !== 'stopped'}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0] ?? null;
+                  onMediaFileChange(file);
+                  if (!file) {
+                    onFilePathChange('');
+                  }
+                }}
+              />
+            </label>
+            {selectedMediaFile ? (
+              <div className="settings-panel__media-selected" role="status">
+                <strong>{selectedMediaFile.name}</strong>
+                <span>
+                  {formatFileSize(selectedMediaFile.size)}
+                  {selectedMediaFile.type ? ` · ${selectedMediaFile.type}` : ''}
+                </span>
+                <button
+                  type="button"
+                  className="settings-panel__media-clear"
+                  disabled={sessionState !== 'stopped'}
+                  onClick={() => {
+                    onMediaFileChange(null);
+                    onFilePathChange('');
+                  }}
+                >
+                  清除
+                </button>
+              </div>
+            ) : (
+              <p className="settings-panel__description">
+                支持 WAV、MP3、M4A、MP4、AAC、OGG、WebM 等浏览器/WebView 可解码的媒体文件。
+              </p>
+            )}
+            {!selectedMediaFile && filePath ? (
+              <p className="settings-panel__hint">当前桌面路径：{filePath}</p>
+            ) : null}
+          </div>
         ) : null}
       </fieldset>
 

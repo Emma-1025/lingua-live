@@ -130,6 +130,10 @@ export function App() {
         sourceKind={session.sourceKind}
         sourceLanguage={session.sourceLanguage}
         filePath={session.filePath}
+        selectedMediaFile={session.selectedMediaFile}
+        systemAudioAvailable={session.systemAudioAvailable}
+        microphoneAvailable={session.microphoneAvailable}
+        nativeCaptureError={session.nativeCaptureError}
         settings={session.settings}
         llmSettings={session.llmSettings}
         vendorSettings={session.vendorSettings}
@@ -137,6 +141,7 @@ export function App() {
         onClose={session.closeSettings}
         onSourceKindChange={session.setSourceKind}
         onFilePathChange={session.setFilePath}
+        onMediaFileChange={session.setMediaFile}
         onSourceLanguageChange={session.setSourceLanguage}
         onSettingsChange={session.setSettings}
         onLlmSettingsChange={session.setLlmSettings}

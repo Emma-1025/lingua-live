@@ -81,14 +81,6 @@ impl CaptureManager {
             }
         }
 
-        if !sources.iter().any(|source| source.kind == "system") {
-            sources.push(AudioSourceDto {
-                id: "system:default".to_string(),
-                label: "System playback (monitor device if available)".to_string(),
-                kind: "system".to_string(),
-            });
-        }
-
         Ok(sources)
     }
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2026-06-07
+
+- Replaced typed media paths in the app with a real file picker so WAV, MP3, M4A, MP4, AAC, OGG, and WebM files can be selected and streamed from browser/WebView file bytes.
+- Preserved native Tauri capture error messages instead of replacing them with a generic "Failed to start native capture" message.
+- Disabled unavailable system-audio and microphone choices when the desktop shell cannot find a monitor/loopback or input device.
+
 ## 0.3.0 - 2026-06-07
 
 - Added media-file decoding for MP4, M4A, and MP3 audio tracks through the browser/WebView decoder while retaining direct WAV support.

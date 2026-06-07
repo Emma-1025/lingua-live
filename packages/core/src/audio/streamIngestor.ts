@@ -100,11 +100,15 @@ export class StreamAudioIngestor implements AudioIngestor {
     } catch (error) {
       this.detachBridge();
       this.emitStartRejected('source_inaccessible');
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'string'
+            ? error
+            : 'Failed to start native capture';
       throw error instanceof SourceInaccessibleError
         ? error
-        : new SourceInaccessibleError(
-            error instanceof Error ? error.message : 'Failed to start native capture',
-          );
+        : new SourceInaccessibleError(message);
     }
   }
 

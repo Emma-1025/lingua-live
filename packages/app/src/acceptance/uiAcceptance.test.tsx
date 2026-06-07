@@ -14,6 +14,7 @@ describe('UI acceptance pass', () => {
     const onSourceKindChange = vi.fn();
     const onLlmSettingsChange = vi.fn();
     const onVendorSettingsChange = vi.fn();
+    const onMediaFileChange = vi.fn();
 
     const { rerender } = render(
       <SettingsPanel
@@ -28,6 +29,7 @@ describe('UI acceptance pass', () => {
         onClose={vi.fn()}
         onSourceKindChange={onSourceKindChange}
         onFilePathChange={vi.fn()}
+        onMediaFileChange={onMediaFileChange}
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={onSettingsChange}
         onLlmSettingsChange={onLlmSettingsChange}
@@ -69,7 +71,8 @@ describe('UI acceptance pass', () => {
         open
         sourceKind="file"
         sourceLanguage="en"
-        filePath="/talk.wav"
+        filePath="selected-media://1000-1024/talk.wav"
+        selectedMediaFile={{ name: 'talk.wav', size: 1024, type: 'audio/wav' }}
         settings={DEFAULT_UI_SETTINGS}
         llmSettings={{ ...DEFAULT_LLM_SETTINGS, provider: 'deepseek', apiKey: 'sk-test' }}
         vendorSettings={{ ...DEFAULT_VENDOR_CONFIG, mode: 'real' }}
@@ -77,6 +80,7 @@ describe('UI acceptance pass', () => {
         onClose={vi.fn()}
         onSourceKindChange={onSourceKindChange}
         onFilePathChange={vi.fn()}
+        onMediaFileChange={onMediaFileChange}
         onSourceLanguageChange={vi.fn()}
         onSettingsChange={onSettingsChange}
         onLlmSettingsChange={onLlmSettingsChange}
@@ -84,7 +88,11 @@ describe('UI acceptance pass', () => {
       />,
     );
 
-    expect(screen.getByDisplayValue('/talk.wav')).toBeInTheDocument();
+    expect(screen.getByText('talk.wav')).toBeInTheDocument();
+    expect(screen.getByText(/1.0 KB/)).toBeInTheDocument();
+    const mediaFile = new File(['mp4-bytes'], 'meeting.mp4', { type: 'video/mp4' });
+    await user.upload(screen.getByLabelText('选择媒体文件'), mediaFile);
+    expect(onMediaFileChange).toHaveBeenCalledWith(mediaFile);
     fireEvent.change(screen.getByLabelText('Deepgram API 密钥'), {
       target: { value: 'dg-test' },
     });
@@ -124,6 +132,32 @@ describe('UI acceptance pass', () => {
     expect(onLlmSettingsChange).toHaveBeenCalledWith(
       expect.objectContaining({ provider: 'deepseek' }),
     );
+  });
+
+  it('disables unavailable native audio sources', () => {
+    render(
+      <SettingsPanel
+        open
+        sourceKind="file"
+        sourceLanguage="en"
+        filePath=""
+        systemAudioAvailable={false}
+        microphoneAvailable={false}
+        settings={DEFAULT_UI_SETTINGS}
+        llmSettings={DEFAULT_LLM_SETTINGS}
+        sessionState="stopped"
+        onClose={vi.fn()}
+        onSourceKindChange={vi.fn()}
+        onFilePathChange={vi.fn()}
+        onSourceLanguageChange={vi.fn()}
+        onSettingsChange={vi.fn()}
+        onLlmSettingsChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('系统声音')).toBeDisabled();
+    expect(screen.getByLabelText('麦克风')).toBeDisabled();
+    expect(screen.getByText(/系统声音不可用/)).toBeInTheDocument();
   });
 
   it('closes the settings dialog with Escape and exposes keyboard focus', async () => {
