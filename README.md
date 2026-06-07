@@ -60,7 +60,7 @@ Audio Ingestor → Speech Recognizer → Translator (DeepSeek)
 
 - **File / system / microphone** sources via `SessionIngestor`
 - **Media files** are selected with the app file picker and support WAV directly plus MP3/M4A/MP4/AAC/OGG/WebM through the browser/WebView media decoder when the platform has the codec
-- **System audio** capture requires the desktop shell and an OS-exposed monitor/loopback input. If Linux/PipeWire/PulseAudio does not expose one, the app disables system audio and media-file import remains the portable fallback.
+- **System audio** on desktop: Windows captures the default speaker mix via WASAPI loopback (no Stereo Mix required). Linux/macOS need a PipeWire/PulseAudio monitor or virtual loopback device (e.g. BlackHole); if none is found, use **媒体文件** instead.
 - **Partial subtitles** throttled under load; frames are never dropped (bounded queue + back-pressure)
 - **Self-correction** when ASR revises an earlier hypothesis (e.g. corps → corpus)
 - **Latency monitor** warns when p95 partial e2e exceeds 5 s
