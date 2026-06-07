@@ -74,23 +74,36 @@ export function SettingsPanel({
     });
   };
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const didInitialFocusRef = useRef(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) {
+      didInitialFocusRef.current = false;
+      return;
+    }
+
+    if (!didInitialFocusRef.current) {
+      closeButtonRef.current?.focus();
+      didInitialFocusRef.current = true;
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
-    closeButtonRef.current?.focus();
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       }
     };
 
     globalThis.addEventListener('keydown', onKeyDown);
     return () => globalThis.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) {
     return null;
