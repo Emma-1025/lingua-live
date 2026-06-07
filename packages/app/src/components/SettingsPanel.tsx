@@ -29,15 +29,7 @@ export interface SettingsPanelProps {
   onLlmSettingsChange: (settings: LlmSettings) => void;
 }
 
-const SOURCE_LANGUAGES: SupportedSourceLanguage[] = [
-  'en',
-  'ja',
-  'ko',
-  'fr',
-  'de',
-  'es',
-  'zh',
-];
+const SOURCE_LANGUAGES: SupportedSourceLanguage[] = ['en', 'ja', 'ko', 'fr', 'de', 'es', 'zh'];
 
 export function SettingsPanel({
   open,
@@ -110,17 +102,17 @@ export function SettingsPanel({
   }
 
   return (
-    <aside
-      className="settings-panel"
-      role="dialog"
-      aria-modal="true"
-      aria-label="设置"
-    >
+    <aside className="settings-panel" role="dialog" aria-modal="true" aria-label="设置">
       <header className="settings-panel__header">
-        <h2>设置</h2>
+        <div>
+          <p className="settings-panel__eyebrow">Session Setup</p>
+          <h2>设置</h2>
+          <p>配置音频来源、字幕显示、语音输出和翻译模型。</p>
+        </div>
         <button
           ref={closeButtonRef}
           type="button"
+          className="settings-panel__close"
           onClick={onClose}
           aria-label="关闭设置"
         >
@@ -128,9 +120,10 @@ export function SettingsPanel({
         </button>
       </header>
 
-      <section>
-        <h3>音频来源</h3>
-        <label>
+      <fieldset className="settings-panel__section">
+        <legend>音频来源</legend>
+        <p className="settings-panel__description">选择 LinguaLive 要监听的输入源。</p>
+        <label className="settings-panel__choice">
           <input
             type="radio"
             name="source-kind"
@@ -139,7 +132,7 @@ export function SettingsPanel({
           />
           系统声音
         </label>
-        <label>
+        <label className="settings-panel__choice">
           <input
             type="radio"
             name="source-kind"
@@ -148,7 +141,7 @@ export function SettingsPanel({
           />
           麦克风
         </label>
-        <label>
+        <label className="settings-panel__choice">
           <input
             type="radio"
             name="source-kind"
@@ -166,27 +159,30 @@ export function SettingsPanel({
             onChange={(event) => onFilePathChange(event.target.value)}
           />
         ) : null}
-      </section>
+      </fieldset>
 
-      <section>
+      <section className="settings-panel__section">
         <h3>源语言</h3>
-        <select
-          value={sourceLanguage}
-          onChange={(event) =>
-            onSourceLanguageChange(event.target.value as SupportedSourceLanguage)
-          }
-        >
-          {SOURCE_LANGUAGES.map((language) => (
-            <option key={language} value={language}>
-              {language.toUpperCase()}
-            </option>
-          ))}
-        </select>
+        <label className="settings-panel__field">
+          输入语言
+          <select
+            value={sourceLanguage}
+            onChange={(event) =>
+              onSourceLanguageChange(event.target.value as SupportedSourceLanguage)
+            }
+          >
+            {SOURCE_LANGUAGES.map((language) => (
+              <option key={language} value={language}>
+                {language.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
       </section>
 
-      <section>
+      <section className="settings-panel__section">
         <h3>显示</h3>
-        <label>
+        <label className="settings-panel__choice">
           <input
             type="checkbox"
             checked={settings.showSourceText}
@@ -196,6 +192,7 @@ export function SettingsPanel({
           />
           显示原文（双语）
         </label>
+        <p className="settings-panel__description">字幕字号</p>
         <div className="settings-panel__font-levels">
           {([1, 2, 3] as const).map((level) => (
             <button
@@ -212,9 +209,9 @@ export function SettingsPanel({
         </div>
       </section>
 
-      <section>
+      <section className="settings-panel__section">
         <h3>中文语音输出</h3>
-        <label>
+        <label className="settings-panel__choice">
           <input
             type="checkbox"
             checked={settings.audioOutputEnabled}
@@ -224,7 +221,7 @@ export function SettingsPanel({
           />
           启用
         </label>
-        <label>
+        <label className="settings-panel__field">
           音量
           <input
             type="range"
@@ -245,7 +242,7 @@ export function SettingsPanel({
         </label>
       </section>
 
-      <section>
+      <section className="settings-panel__section">
         <h3>翻译模型 (LLM)</h3>
         {llmLocked ? (
           <p className="settings-panel__hint">会话进行中时无法更改模型设置，请先停止会话。</p>
@@ -254,7 +251,7 @@ export function SettingsPanel({
             源语言默认 {DEFAULT_SOURCE_LANGUAGE.toUpperCase()} · 密钥仅保存在本机浏览器/桌面应用中
           </p>
         )}
-        <label>
+        <label className="settings-panel__field">
           提供商
           <select
             value={llmSettings.provider}
@@ -270,7 +267,7 @@ export function SettingsPanel({
         </label>
         {cloudProvider ? (
           <>
-            <label>
+            <label className="settings-panel__field">
               API 密钥
               <input
                 type="password"
@@ -282,7 +279,7 @@ export function SettingsPanel({
                 onChange={(event) => updateLlm({ apiKey: event.target.value })}
               />
             </label>
-            <label>
+            <label className="settings-panel__field">
               API 地址（可选）
               <input
                 type="text"
@@ -293,7 +290,7 @@ export function SettingsPanel({
                 onChange={(event) => updateLlm({ baseUrl: event.target.value })}
               />
             </label>
-            <label>
+            <label className="settings-panel__field">
               翻译模型（可选）
               <input
                 type="text"

@@ -17,12 +17,12 @@ Mock drivers are used by default — no API keys required for local development 
 
 ## Environment variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DEEPSEEK_API_KEY` | For real translation | DeepSeek chat completions (translation + correction) |
-| `LINGUA_VENDOR_MODE` | No | `mock` (default) or `real` for cloud ASR/TTS |
-| `DEEPGRAM_API_KEY` | When `real` | Streaming ASR (Deepgram) |
-| `OPENAI_API_KEY` / `TTS_API_KEY` | When `real` | Chinese TTS (OpenAI-compatible `/audio/speech`) |
+| Variable                         | Required             | Description                                          |
+| -------------------------------- | -------------------- | ---------------------------------------------------- |
+| `DEEPSEEK_API_KEY`               | For real translation | DeepSeek chat completions (translation + correction) |
+| `LINGUA_VENDOR_MODE`             | No                   | `mock` (default) or `real` for cloud ASR/TTS         |
+| `DEEPGRAM_API_KEY`               | When `real`          | Streaming ASR (Deepgram)                             |
+| `OPENAI_API_KEY` / `TTS_API_KEY` | When `real`          | Chinese TTS (OpenAI-compatible `/audio/speech`)      |
 
 Example for a full live session on desktop:
 
@@ -38,11 +38,11 @@ Keys must live in the desktop backend process or your shell environment — neve
 
 ## Monorepo layout
 
-| Package | Description |
-|---------|-------------|
-| `@lingua-live/core` | Pipeline: ingest → VAD → ASR → translate → correct → transcript/TTS |
-| `@lingua-live/app` | React UI: subtitles, controls, settings, consent, export |
-| `@lingua-live/desktop` | Tauri 2 shell with Rust/cpal system & microphone capture |
+| Package                | Description                                                         |
+| ---------------------- | ------------------------------------------------------------------- |
+| `@lingua-live/core`    | Pipeline: ingest → VAD → ASR → translate → correct → transcript/TTS |
+| `@lingua-live/app`     | React UI: subtitles, controls, settings, consent, export            |
+| `@lingua-live/desktop` | Tauri 2 shell with Rust/cpal system & microphone capture            |
 
 ## Architecture (high level)
 
@@ -77,11 +77,11 @@ npm run build:desktop
 
 Artifacts land under `packages/desktop/src-tauri/target/release/bundle/`:
 
-| Platform | Installers |
-|----------|------------|
-| Linux | `.deb`, `.rpm`, `.AppImage` |
-| macOS | `.dmg` |
-| Windows | `.msi` (NSIS) |
+| Platform | Installers                  |
+| -------- | --------------------------- |
+| Linux    | `.deb`, `.rpm`, `.AppImage` |
+| macOS    | `.dmg`                      |
+| Windows  | `.msi` (NSIS)               |
 
 For a faster CI-style compile without packaging:
 
@@ -100,8 +100,8 @@ cd packages/desktop && npx tauri icon app-icon.png
 Push a version tag to build installers for macOS (Intel + Apple Silicon), Windows, and Linux:
 
 ```bash
-git tag app-v0.1.0
-git push origin app-v0.1.0
+git tag app-v0.2.0
+git push origin app-v0.2.0
 ```
 
 The `release-desktop` workflow uploads draft release assets. For signed/notarized macOS or Windows builds, configure the signing secrets documented in [Tauri’s GitHub pipeline guide](https://v2.tauri.app/distribute/pipelines/github/).

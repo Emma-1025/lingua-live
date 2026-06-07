@@ -34,8 +34,14 @@ export function ControlPanel({
   return (
     <footer className="control-panel" aria-label="会话控制">
       <div className="control-panel__status">
-        <span className={`control-panel__dot control-panel__dot--${sessionState}`} />
-        <span>{STATE_LABEL[sessionState]}</span>
+        <span
+          className={`control-panel__dot control-panel__dot--${sessionState}`}
+          aria-hidden="true"
+        />
+        <span className="control-panel__status-copy">
+          <span>会话状态</span>
+          <strong>{STATE_LABEL[sessionState]}</strong>
+        </span>
         {latencyWarning ? (
           <span className="control-panel__latency-warning" role="status">
             延迟过高
@@ -48,6 +54,7 @@ export function ControlPanel({
       <div className="control-panel__actions">
         <button
           type="button"
+          className="control-panel__button control-panel__button--primary"
           onClick={onStart}
           disabled={!isStopped || unavailableControl === 'start'}
         >
@@ -55,6 +62,7 @@ export function ControlPanel({
         </button>
         <button
           type="button"
+          className="control-panel__button"
           onClick={onPause}
           disabled={!isCapturing || unavailableControl === 'pause'}
         >
@@ -62,6 +70,7 @@ export function ControlPanel({
         </button>
         <button
           type="button"
+          className="control-panel__button"
           onClick={onResume}
           disabled={!isPaused || unavailableControl === 'resume'}
         >
@@ -69,12 +78,17 @@ export function ControlPanel({
         </button>
         <button
           type="button"
+          className="control-panel__button control-panel__button--danger"
           onClick={onStop}
           disabled={isStopped || unavailableControl === 'stop'}
         >
           停止
         </button>
-        <button type="button" className="control-panel__settings" onClick={onOpenSettings}>
+        <button
+          type="button"
+          className="control-panel__button control-panel__settings"
+          onClick={onOpenSettings}
+        >
           设置
         </button>
       </div>

@@ -32,6 +32,7 @@ export function StopExportDialog({
 
   return (
     <dialog className="stop-export-dialog" open aria-label="会话结束">
+      <p className="dialog__eyebrow">Session Complete</p>
       <h2>本场会话已结束</h2>
       <p>
         共 {segmentCount} 条字幕，时长 {formatDuration(durationMs)}
@@ -40,7 +41,7 @@ export function StopExportDialog({
       {exportNotice ? <p className="stop-export-dialog__notice">{exportNotice}</p> : null}
       <div className="stop-export-dialog__actions">
         {canExport ? (
-          <button type="button" onClick={onExport}>
+          <button type="button" className="dialog__primary" onClick={onExport}>
             导出文本 (.txt)
           </button>
         ) : (

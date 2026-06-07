@@ -17,6 +17,8 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
   const scrollRef = useRef<HTMLDivElement>(null);
   const announcedFinalsRef = useRef(new Set<string>());
   const [finalAnnouncement, setFinalAnnouncement] = useState('');
+  const finalCount = lines.filter((line) => line.status === 'final').length;
+  const partialCount = lines.length - finalCount;
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -39,10 +41,24 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
   }, [lines]);
 
   return (
-    <section
-      className={`subtitle-view ${FONT_SIZE_CLASS[fontSizeLevel]}`}
-      aria-label="实时字幕"
-    >
+    <section className={`subtitle-view ${FONT_SIZE_CLASS[fontSizeLevel]}`} aria-label="实时字幕">
+      <header className="subtitle-view__header">
+        <div>
+          <p className="subtitle-view__eyebrow">Live Captions</p>
+          <h2>实时字幕</h2>
+        </div>
+        <dl className="subtitle-view__metrics" aria-label="字幕统计">
+          <div>
+            <dt>已确认</dt>
+            <dd>{finalCount}</dd>
+          </div>
+          <div>
+            <dt>识别中</dt>
+            <dd>{partialCount}</dd>
+          </div>
+        </dl>
+      </header>
+
       <div className="sr-only" aria-live="assertive" aria-atomic="true">
         {finalAnnouncement}
       </div>
@@ -55,7 +71,11 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
         aria-relevant="additions text"
       >
         {lines.length === 0 ? (
-          <p className="subtitle-view__empty">字幕将在此处显示…</p>
+          <div className="subtitle-view__empty">
+            <p className="subtitle-view__empty-title">准备接收音频</p>
+            <p>字幕将在此处显示…</p>
+            <span>选择来源并点击开始，LinguaLive 会自动滚动最新字幕。</span>
+          </div>
         ) : (
           lines.map((line) => (
             <article
@@ -77,6 +97,10 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
                     : `临时字幕：${line.zhText}`
               }
             >
+              <div className="subtitle-view__line-meta" aria-hidden="true">
+                <span>#{line.spokenIndex + 1}</span>
+                <span>{line.status === 'final' ? '已确认' : '识别中'}</span>
+              </div>
               {showSourceText && line.sourceText ? (
                 <p className="subtitle-view__source">{line.sourceText}</p>
               ) : null}
