@@ -11,8 +11,12 @@ export interface DeepgramSocket {
   removeEventListener(type: 'open' | 'message' | 'error' | 'close', listener: (event: unknown) => void): void;
 }
 
+export interface DeepgramSocketConnectOptions {
+  apiKey: string;
+}
+
 export interface DeepgramSocketFactory {
-  connect(url: string, headers: Record<string, string>): DeepgramSocket;
+  connect(url: string, options: DeepgramSocketConnectOptions): DeepgramSocket;
 }
 
 export interface DeepgramListenParams {
@@ -115,11 +119,8 @@ export class DeepgramStreamingClient {
     url.searchParams.set('interim_results', 'true');
     url.searchParams.set('vad_events', 'true');
 
-    // Browser WebSocket cannot set Authorization headers; token is passed via query string.
-    url.searchParams.set('token', this.apiKey);
-
     const socket = this.socketFactory.connect(url.toString(), {
-      Authorization: `Token ${this.apiKey}`,
+      apiKey: this.apiKey,
     });
     this.socket = socket;
 
@@ -222,18 +223,13 @@ function extractMessageData(event: unknown): string | null {
 }
 
 const defaultSocketFactory: DeepgramSocketFactory = {
-  connect(url, headers) {
+  connect(url, { apiKey }) {
     if (typeof WebSocket === 'undefined') {
       throw new Error('WebSocket is not available in this environment');
     }
 
-    const socket = new WebSocket(url, []);
-    for (const [key, value] of Object.entries(headers)) {
-      // Browser WebSocket cannot set Authorization header; tests inject a factory.
-      void key;
-      void value;
-    }
-
-    return socket as unknown as DeepgramSocket;
+    // Browser/Tauri WebViews cannot set Authorization headers; Deepgram expects
+    // Sec-WebSocket-Protocol: token, <api_key> during the handshake.
+    return new WebSocket(url, ['token', apiKey]) as unknown as DeepgramSocket;
   },
 };
