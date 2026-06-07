@@ -20,7 +20,9 @@
 html,
 body,
 #root {
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -118,7 +120,8 @@ input[type='range'] {
 
 .app {
   position: relative;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -164,6 +167,7 @@ input[type='range'] {
 }
 
 .app__header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -256,19 +260,25 @@ input[type='range'] {
 .app__main {
   min-height: 0;
   flex: 1;
+  overflow: hidden;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
   gap: 1rem;
-  padding: 0 clamp(1rem, 3vw, 2rem) 1rem;
+  padding: 0 clamp(1rem, 3vw, 2rem) 0.75rem;
 }
 
 .app__stage {
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .app__insights {
   min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
   display: grid;
   align-content: start;
   gap: 0.85rem;
@@ -526,6 +536,12 @@ input[type='range'] {
   letter-spacing: -0.02em;
 }
 
+.subtitle-view__zh--pending {
+  color: #8d9abc;
+  font-weight: 600;
+  font-style: italic;
+}
+
 .subtitle-view--font-sm .subtitle-view__zh {
   font-size: 1.15rem;
 }
@@ -563,6 +579,7 @@ input[type='range'] {
 }
 
 .control-panel {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -967,10 +984,6 @@ fieldset.settings-panel__section {
 }
 
 @media (max-width: 720px) {
-  .app {
-    overflow-y: auto;
-  }
-
   .app__brand {
     align-items: flex-start;
   }
@@ -989,8 +1002,9 @@ fieldset.settings-panel__section {
     padding-bottom: 0.75rem;
   }
 
-  .subtitle-view {
-    min-height: 28rem;
+  .app__insights {
+    max-height: none;
+    overflow: visible;
   }
 
   .subtitle-view__header,

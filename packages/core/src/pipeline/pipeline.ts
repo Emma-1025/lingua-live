@@ -346,7 +346,7 @@ export class PipelineImpl implements Pipeline {
         return;
       }
 
-      await this.translateAndEmitPartial(segment);
+      await this.emitPartialSourceOnly(segment);
       return;
     }
 
@@ -369,57 +369,27 @@ export class PipelineImpl implements Pipeline {
     this.trimSegmentMaps();
   }
 
-  private async translateAndEmitPartial(segment: SourceSegment): Promise<void> {
-    let zhText = '';
-    try {
-      for await (const token of this.translator.translatePartial(segment)) {
-        zhText += token;
-        const partial: ZhSegment = {
-          id: segment.id,
-          sessionId: segment.sessionId,
-          sourceText: segment.text,
-          zhText,
-          status: 'partial',
-          spokenIndex: segment.spokenIndex,
-          untranslated: false,
-        };
-        await this.emitSubtitleWithSideEffects(partial, segment.startedAt);
-      }
-    } catch {
-      if (zhText.trim()) {
-        await this.emitSubtitleWithSideEffects(
-          {
-            id: segment.id,
-            sessionId: segment.sessionId,
-            sourceText: segment.text,
-            zhText,
-            status: 'partial',
-            spokenIndex: segment.spokenIndex,
-            untranslated: false,
-          },
-          segment.startedAt,
-        );
-        return;
-      }
-
-      const fallback = {
+  /** Shows live ASR text only; Chinese is translated once per finalized sentence. */
+  private async emitPartialSourceOnly(segment: SourceSegment): Promise<void> {
+    await this.emitSubtitleWithSideEffects(
+      {
         id: segment.id,
         sessionId: segment.sessionId,
         sourceText: segment.text,
-        zhText: segment.text,
-        status: 'partial' as const,
+        zhText: '',
+        status: 'partial',
         spokenIndex: segment.spokenIndex,
-        untranslated: true,
-      };
-      await this.emitSubtitleWithSideEffects(fallback, segment.startedAt);
-    }
+        untranslated: false,
+      },
+      segment.startedAt,
+    );
   }
 
   private async emitSubtitleWithSideEffects(segment: ZhSegment, capturedAt: number): Promise<void> {
     const displayedAt = this.now();
     this.correctionEngine.recordDisplayed(segment, displayedAt);
 
-    if (segment.status === 'partial') {
+    if (segment.status === 'final' && segment.zhText.trim()) {
       this.latencyMonitor.recordPartial(capturedAt, displayedAt);
     }
 

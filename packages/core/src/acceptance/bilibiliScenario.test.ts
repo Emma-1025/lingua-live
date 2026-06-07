@@ -83,10 +83,8 @@ describe('Bilibili-style acceptance scenario', () => {
     const finals = subtitles.filter((segment) => segment.status === 'final');
     expect(finals.at(-1)?.zhText).toContain('语料库');
 
-    const segmentId = subtitles[0]?.id;
-    const sameSegment = subtitles.filter((segment) => segment.id === segmentId);
-    expect(sameSegment.some((segment) => segment.zhText.includes('军团'))).toBe(true);
-    expect(sameSegment.some((segment) => segment.zhText.includes('语料库'))).toBe(true);
+    const partials = subtitles.filter((segment) => segment.status === 'partial');
+    expect(partials.every((segment) => !segment.zhText.trim())).toBe(true);
   });
 });
 

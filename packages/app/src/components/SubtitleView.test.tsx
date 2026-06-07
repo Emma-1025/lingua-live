@@ -17,7 +17,7 @@ const sampleLines: DisplaySubtitleLine[] = [
     id: 'seg-2',
     spokenIndex: 1,
     sourceText: 'world',
-    zhText: '世界',
+    zhText: '',
     status: 'partial',
     untranslated: false,
     unrecognized: false,
@@ -33,7 +33,7 @@ describe('SubtitleView', () => {
 
     const zhLines = screen.getAllByRole('article');
     expect(zhLines[0]).toHaveTextContent('你好');
-    expect(zhLines[1]).toHaveTextContent('世界');
+    expect(zhLines[1]).toHaveTextContent('整句识别中…');
   });
 
   it('shows bilingual source lines when enabled', () => {
