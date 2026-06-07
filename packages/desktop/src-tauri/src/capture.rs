@@ -1,5 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Sample, SampleFormat, Stream};
+use cpal::{Sample, SampleFormat, Stream, SupportedStreamConfig};
 use serde::Serialize;
 use std::sync::mpsc::{self, Sender};
 use std::sync::Mutex;
@@ -33,6 +33,14 @@ pub struct AudioFrameDto {
 
 enum CaptureCommand {
     Stop,
+}
+
+enum CaptureDeviceKind {
+    /// Standard microphone or monitor/loopback input device.
+    Input,
+    /// WASAPI: capture mixed audio from a speaker/output endpoint.
+    #[cfg(target_os = "windows")]
+    OutputLoopback,
 }
 
 struct CaptureWorkerState {
@@ -69,12 +77,25 @@ impl CaptureManager {
             });
         }
 
+        if let Some((device, label)) = default_system_capture_source(&host) {
+            sources.push(AudioSourceDto {
+                id: "system:default".to_string(),
+                label,
+                kind: "system".to_string(),
+            });
+            // Keep device in scope so enumeration side-effects (if any) are not optimized away.
+            let _ = device.name();
+        }
+
         for (index, device) in host.input_devices().map_err(|e| e.to_string())?.enumerate() {
             let name = device.name().unwrap_or_else(|_| format!("Input {index}"));
-            let lowered = name.to_lowercase();
-            if lowered.contains("monitor") || lowered.contains("loopback") {
+            if is_loopback_input_name(&name) {
+                let id = format!("system:{index}");
+                if sources.iter().any(|source| source.id == id) {
+                    continue;
+                }
                 sources.push(AudioSourceDto {
-                    id: format!("system:{index}"),
+                    id,
                     label: name,
                     kind: "system".to_string(),
                 });
@@ -94,14 +115,13 @@ impl CaptureManager {
         self.stop()?;
 
         let host = cpal::default_host();
-        let device = resolve_device(&host, &source_kind, device_id.as_deref())?;
-        let config = device
-            .default_input_config()
-            .map_err(|e| format!("No supported input config: {e}"))?;
-        let sample_rate = config.sample_rate().0;
-        let channels = config.channels();
-        let sample_format = config.sample_format();
-        let stream_config: cpal::StreamConfig = config.into();
+        let (device, capture_kind) =
+            resolve_capture_target(&host, &source_kind, device_id.as_deref())?;
+        let supported_config = stream_config_for_device(&device, capture_kind)?;
+        let sample_rate = supported_config.sample_rate().0;
+        let channels = supported_config.channels();
+        let sample_format = supported_config.sample_format();
+        let stream_config: cpal::StreamConfig = supported_config.config();
 
         let (cmd_tx, cmd_rx) = mpsc::channel::<CaptureCommand>();
         let (startup_tx, startup_rx) = mpsc::channel::<Result<(), String>>();
@@ -261,11 +281,26 @@ where
         .map_err(|e| e.to_string())
 }
 
-fn resolve_device(
+fn stream_config_for_device(
+    device: &cpal::Device,
+    capture_kind: CaptureDeviceKind,
+) -> Result<SupportedStreamConfig, String> {
+    match capture_kind {
+        CaptureDeviceKind::Input => device
+            .default_input_config()
+            .map_err(|e| format!("No supported input config: {e}")),
+        #[cfg(target_os = "windows")]
+        CaptureDeviceKind::OutputLoopback => device
+            .default_output_config()
+            .map_err(|e| format!("No supported output loopback config: {e}")),
+    }
+}
+
+fn resolve_capture_target(
     host: &cpal::Host,
     source_kind: &str,
     device_id: Option<&str>,
-) -> Result<cpal::Device, String> {
+) -> Result<(cpal::Device, CaptureDeviceKind), String> {
     if source_kind == "microphone" {
         if let Some(id) = device_id {
             if id != "microphone:default" {
@@ -273,51 +308,126 @@ fn resolve_device(
                     if let Some(device) =
                         host.input_devices().map_err(|e| e.to_string())?.nth(index)
                     {
-                        return Ok(device);
+                        return Ok((device, CaptureDeviceKind::Input));
                     }
                 }
             }
         }
-        return host
+        let device = host
             .default_input_device()
-            .ok_or_else(|| "No microphone device available".to_string());
+            .ok_or_else(|| "No microphone device available".to_string())?;
+        return Ok((device, CaptureDeviceKind::Input));
     }
 
     if let Some(id) = device_id {
-        if let Ok(index) = id.trim_start_matches("system:").parse::<usize>() {
-            let monitors: Vec<_> = host
-                .input_devices()
-                .map_err(|e| e.to_string())?
-                .enumerate()
-                .filter_map(|(idx, device)| {
-                    let name = device.name().ok()?;
-                    let lowered = name.to_lowercase();
-                    if lowered.contains("monitor") || lowered.contains("loopback") {
-                        Some((idx, device))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
+        if id != "system:default" {
+            if let Ok(index) = id.trim_start_matches("system:").parse::<usize>() {
+                let monitors: Vec<_> = host
+                    .input_devices()
+                    .map_err(|e| e.to_string())?
+                    .enumerate()
+                    .filter_map(|(idx, device)| {
+                        let name = device.name().ok()?;
+                        if is_loopback_input_name(&name) {
+                            Some((idx, device))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
 
-            if let Some((_, device)) = monitors.into_iter().find(|(idx, _)| *idx == index) {
-                return Ok(device);
+                if let Some((_, device)) = monitors.into_iter().find(|(idx, _)| *idx == index) {
+                    return Ok((device, CaptureDeviceKind::Input));
+                }
             }
         }
     }
 
+    if let Some((device, _)) = default_system_capture_source(host) {
+        #[cfg(target_os = "windows")]
+        {
+            return Ok((device, CaptureDeviceKind::OutputLoopback));
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            return Ok((device, CaptureDeviceKind::Input));
+        }
+    }
+
+    Err(system_audio_unavailable_message())
+}
+
+fn default_system_capture_source(host: &cpal::Host) -> Option<(cpal::Device, String)> {
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(device) = host.default_output_device() {
+            let name = device
+                .name()
+                .unwrap_or_else(|_| "Default speakers".to_string());
+            return Some((device, format!("{name} (system playback)")));
+        }
+    }
+
+    find_loopback_input_device(host).map(|device| {
+        let name = device
+            .name()
+            .unwrap_or_else(|_| "System monitor".to_string());
+        (device, name)
+    })
+}
+
+fn find_loopback_input_device(host: &cpal::Host) -> Option<cpal::Device> {
     host.input_devices()
-        .map_err(|e| e.to_string())?
+        .ok()?
         .find(|device| {
             device
                 .name()
-                .map(|name| {
-                    let lowered = name.to_lowercase();
-                    lowered.contains("monitor") || lowered.contains("loopback")
-                })
+                .map(|name| is_loopback_input_name(&name))
                 .unwrap_or(false)
         })
-        .ok_or_else(|| "No system loopback or monitor device available".to_string())
+}
+
+fn is_loopback_input_name(name: &str) -> bool {
+    let lowered = name.to_lowercase();
+    [
+        "monitor",
+        "loopback",
+        ".monitor",
+        "monitor of",
+        "stereo mix",
+        "what u hear",
+        "wave out",
+        "remap",
+        "virtual sink",
+        "blackhole",
+        "soundflower",
+        "vb-audio",
+        "vb cable",
+        "cable output",
+        "pulse",
+        "pipewire",
+    ]
+    .iter()
+    .any(|needle| lowered.contains(needle))
+}
+
+fn system_audio_unavailable_message() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        return "No system audio capture available. Check that a playback device is enabled, or use a media file instead.".to_string();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        return "No system monitor/loopback input found. On PipeWire/PulseAudio, enable a sink monitor or use a media file instead.".to_string();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        return "No system loopback device found. Install BlackHole or similar, or use a media file instead.".to_string();
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+    {
+        return "No system loopback or monitor device available".to_string();
+    }
 }
 
 fn stereo_to_mono<T>(samples: &[T], channels: u16) -> Vec<f32>

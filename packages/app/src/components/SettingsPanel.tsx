@@ -199,9 +199,15 @@ export function SettingsPanel({
         </label>
         {!systemAudioAvailable ? (
           <p className="settings-panel__hint">
-            系统声音不可用：需要桌面版，并且系统必须暴露 monitor/loopback 输入设备。
+            系统声音不可用。Windows 请确认已启用扬声器/耳机；Linux 需在 PipeWire/PulseAudio
+            中启用 sink monitor（或安装虚拟声卡）。也可改用下方的<strong>媒体文件</strong>导入音频。
           </p>
-        ) : null}
+        ) : (
+          <p className="settings-panel__hint">
+            系统声音会捕获当前默认扬声器/耳机的混音输出（Windows 自动支持 WASAPI
+            loopback；Linux 使用 monitor 设备）。
+          </p>
+        )}
         {!microphoneAvailable ? (
           <p className="settings-panel__hint">未检测到可用麦克风输入设备。</p>
         ) : null}
