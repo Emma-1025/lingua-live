@@ -39,6 +39,12 @@ vi.mock('./createVendorPipeline.js', () => ({
 const pipelinePause = vi.fn(async () => {});
 const pipelineResume = vi.fn(async () => {});
 
+const transcriptStore = {
+  getEntries: vi.fn(() => [{ spokenIndex: 0, zhText: '你好', status: 'final' as const }]),
+  canExport: vi.fn(() => true),
+  exportToText: vi.fn(() => '你好'),
+};
+
 vi.mock('@lingua-live/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@lingua-live/core')>();
   return {
@@ -52,10 +58,7 @@ vi.mock('@lingua-live/core', async (importOriginal) => {
       onSubtitle: vi.fn(() => () => {}),
       onUnrecognized: vi.fn(() => () => {}),
       onLatencyWarning: vi.fn(() => () => {}),
-      getTranscriptStore: vi.fn(() => ({
-        getEntries: () => [],
-        canExport: () => false,
-      })),
+      getTranscriptStore: vi.fn(() => transcriptStore),
     })),
     createSessionIngestor: vi.fn(() => ({})),
     SessionManager: actual.SessionManager,
@@ -108,6 +111,27 @@ describe('useInterpretationSession audio wiring', () => {
       await result.current.resume();
     });
     expect(pipelineResume).toHaveBeenCalled();
+  });
+
+  it('preserves transcript count for the stop dialog after stopping', async () => {
+    const { result } = renderHook(() => useInterpretationSession());
+
+    act(() => {
+      result.current.setFilePath('/demo.wav');
+      result.current.setSourceKind('file');
+    });
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    await act(async () => {
+      await result.current.stop();
+    });
+
+    expect(result.current.transcriptCount).toBe(1);
+    expect(result.current.canExport).toBe(true);
+    expect(result.current.stopDialogOpen).toBe(true);
   });
 
   it('syncs recognizer language when source language changes', () => {
