@@ -9,16 +9,30 @@ function readVendorModeFromBuildEnv(): VendorMode | undefined {
   return mode === 'real' || mode === 'mock' ? mode : undefined;
 }
 
+function readDeepgramKeyFromBuildEnv(): string {
+  // Must reference process.env.DEEPGRAM_API_KEY directly so Vite define can inline it.
+  return process.env.DEEPGRAM_API_KEY?.trim() ?? '';
+}
+
+/** Mirrors DeepSeek key loading: env key pre-fills the UI and enables real ASR mode. */
+function settingsWithEnvDeepgramDefaults(settings: VendorConfig): VendorConfig {
+  const envKey = readDeepgramKeyFromBuildEnv();
+  if (!envKey || settings.deepgramApiKey?.trim()) {
+    return settings;
+  }
+
+  return {
+    ...settings,
+    mode: 'real',
+    deepgramApiKey: envKey,
+  };
+}
+
 function settingsWithBuildEnvDefaults(
   settings: VendorConfig,
   options: { useEnvMode: boolean },
 ): VendorConfig {
   const mode = readVendorModeFromBuildEnv();
-  const deepgramApiKey =
-    settings.deepgramApiKey?.trim() ||
-    // Must reference process.env.DEEPGRAM_API_KEY directly so Vite define can inline it.
-    process.env.DEEPGRAM_API_KEY?.trim() ||
-    undefined;
   const ttsApiKey =
     settings.ttsApiKey?.trim() ||
     // Must reference process.env.TTS_API_KEY / OPENAI_API_KEY directly for Vite env inlining.
@@ -29,7 +43,6 @@ function settingsWithBuildEnvDefaults(
   return {
     ...settings,
     mode: options.useEnvMode ? (mode ?? settings.mode) : settings.mode,
-    deepgramApiKey,
     ttsApiKey,
     // Must reference process.env.TTS_BASE_URL / TTS_MODEL / TTS_VOICE directly for Vite env inlining.
     ttsBaseUrl:
@@ -63,20 +76,30 @@ function normalizeVendorSettings(settings: Partial<VendorConfig>): VendorConfig 
 
 export function loadVendorSettings(): VendorConfig {
   if (typeof globalThis.localStorage === 'undefined') {
-    return settingsWithBuildEnvDefaults(DEFAULT_VENDOR_CONFIG, { useEnvMode: true });
+    return settingsWithBuildEnvDefaults(
+      settingsWithEnvDeepgramDefaults(DEFAULT_VENDOR_CONFIG),
+      { useEnvMode: true },
+    );
   }
 
   try {
     const raw = globalThis.localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return settingsWithBuildEnvDefaults(DEFAULT_VENDOR_CONFIG, { useEnvMode: true });
+      return settingsWithBuildEnvDefaults(
+        settingsWithEnvDeepgramDefaults(DEFAULT_VENDOR_CONFIG),
+        { useEnvMode: true },
+      );
     }
 
-    return settingsWithBuildEnvDefaults(normalizeVendorSettings(JSON.parse(raw)), {
-      useEnvMode: false,
-    });
+    return settingsWithBuildEnvDefaults(
+      settingsWithEnvDeepgramDefaults(normalizeVendorSettings(JSON.parse(raw))),
+      { useEnvMode: false },
+    );
   } catch {
-    return settingsWithBuildEnvDefaults(DEFAULT_VENDOR_CONFIG, { useEnvMode: true });
+    return settingsWithBuildEnvDefaults(
+      settingsWithEnvDeepgramDefaults(DEFAULT_VENDOR_CONFIG),
+      { useEnvMode: true },
+    );
   }
 }
 
