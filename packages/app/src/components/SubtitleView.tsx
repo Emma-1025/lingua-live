@@ -104,18 +104,20 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
               {showSourceText && line.sourceText ? (
                 <p className="subtitle-view__source">{line.sourceText}</p>
               ) : null}
-              <p className="subtitle-view__zh">
-                {line.unrecognized ? (
+              {line.unrecognized ? (
+                <p className="subtitle-view__zh">
                   <span className="subtitle-view__unrecognized">（无法识别）</span>
-                ) : (
-                  <>
-                    {line.zhText}
-                    {line.untranslated && line.status === 'final' ? (
-                      <span className="subtitle-view__untranslated">未翻译</span>
-                    ) : null}
-                  </>
-                )}
-              </p>
+                </p>
+              ) : line.zhText.trim() ? (
+                <p className="subtitle-view__zh">
+                  {line.zhText}
+                  {line.untranslated && line.status === 'final' ? (
+                    <span className="subtitle-view__untranslated">未翻译</span>
+                  ) : null}
+                </p>
+              ) : line.status === 'partial' ? (
+                <p className="subtitle-view__zh subtitle-view__zh--pending">thinking...</p>
+              ) : null}
               {line.showCorrectionHighlight ? (
                 <span className="subtitle-view__badge" aria-hidden="true">
                   ✎已更正

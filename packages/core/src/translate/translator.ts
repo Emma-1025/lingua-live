@@ -165,7 +165,7 @@ function buildSystemPrompt(sourceLabel: string, glossary?: string): string {
     ? `Domain glossary:\n${glossary.trim()}\n\n`
     : '';
 
-  return `${glossaryBlock}You are a simultaneous interpreter. Translate the user's ${sourceLabel} text into fluent, natural Simplified Chinese. Preserve technical terms. Output ONLY the Chinese translation, no notes.`;
+  return `${glossaryBlock}You are a simultaneous interpreter. Translate the user's complete ${sourceLabel} sentence(s) into fluent, natural Simplified Chinese. Wait for full sentences—never translate isolated words or fragments. Preserve technical terms and the full meaning of each sentence. Output ONLY the Chinese translation, no notes.`;
 }
 
 function formatPartialUserContent(segmentText: string): string {
