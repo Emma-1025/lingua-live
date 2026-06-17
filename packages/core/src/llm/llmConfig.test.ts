@@ -57,10 +57,12 @@ describe('createLlmClientFromSettings', () => {
   });
 
   it('uses DeepSeek flash without thinking for translation and correction defaults', async () => {
-    const fetchFn = vi.fn().mockResolvedValue(
-      jsonResponse({
-        choices: [{ message: { content: 'ok' } }],
-      }),
+    const fetchFn = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        jsonResponse({
+          choices: [{ message: { content: 'ok' } }],
+        }),
+      ),
     );
 
     const translationClient = createLlmClientFromSettings(

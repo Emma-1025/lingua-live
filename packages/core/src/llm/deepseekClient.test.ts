@@ -67,15 +67,15 @@ describe('DeepSeekClientImpl', () => {
         headers: expect.objectContaining({
           Authorization: 'Bearer test-key',
         }),
-        body: JSON.stringify({
-          model: 'deepseek-v4-flash',
-          stream: true,
-          temperature: 0.3,
-          thinking: { type: 'disabled' },
-          messages: [{ role: 'user', content: 'hello' }],
-        }),
       }),
     );
+    expect(JSON.parse(fetchFn.mock.calls[0][1].body as string)).toMatchObject({
+      model: 'deepseek-v4-flash',
+      stream: true,
+      temperature: 0.3,
+      thinking: { type: 'disabled' },
+      messages: [{ role: 'user', content: 'hello' }],
+    });
   });
 
   it('does not send DeepSeek thinking options to other OpenAI-compatible hosts', async () => {
