@@ -5,11 +5,13 @@ export interface ControlPanelProps {
   latencyWarning: boolean;
   unavailableControl?: SessionControl | null;
   startError?: string;
+  startDisabled?: boolean;
   onStart: () => void;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
   onOpenSettings: () => void;
+  onDismissStartError?: () => void;
 }
 
 const STATE_LABEL: Record<SessionState, string> = {
@@ -23,11 +25,13 @@ export function ControlPanel({
   latencyWarning,
   unavailableControl,
   startError,
+  startDisabled = false,
   onStart,
   onPause,
   onResume,
   onStop,
   onOpenSettings,
+  onDismissStartError,
 }: ControlPanelProps) {
   const isCapturing = sessionState === 'capturing';
   const isPaused = sessionState === 'paused';
@@ -54,9 +58,18 @@ export function ControlPanel({
       </div>
 
       {startError ? (
-        <p className="control-panel__error" role="alert">
-          {startError}
-        </p>
+        <div className="control-panel__error" role="alert">
+          <p>{startError}</p>
+          {onDismissStartError ? (
+            <button
+              type="button"
+              className="control-panel__error-dismiss"
+              onClick={onDismissStartError}
+            >
+              清除
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="control-panel__actions">
@@ -64,7 +77,7 @@ export function ControlPanel({
           type="button"
           className="control-panel__button control-panel__button--primary"
           onClick={onStart}
-          disabled={!isStopped || unavailableControl === 'start'}
+          disabled={!isStopped || startDisabled || unavailableControl === 'start'}
         >
           开始
         </button>

@@ -1,10 +1,12 @@
 import {
+  DEFAULT_DEEPSEEK_MODEL,
   DEFAULT_LLM_SETTINGS,
   type LlmProvider,
   type LlmSettings,
 } from '@lingua-live/core';
 
 const STORAGE_KEY = 'lingua-live-llm-settings-v1';
+const LEGACY_DEEPSEEK_CORRECTION_MODEL = 'deepseek-v4-pro';
 
 const PROVIDERS: LlmProvider[] = ['mock', 'deepseek', 'openai'];
 
@@ -16,13 +18,28 @@ function readDeepSeekKeyFromBuildEnv(): string {
 function settingsWithEnvDeepSeekDefaults(settings: LlmSettings): LlmSettings {
   const envKey = readDeepSeekKeyFromBuildEnv();
   if (!envKey || settings.apiKey.trim()) {
+    return migrateDeepSeekSettings(settings);
+  }
+
+  return migrateDeepSeekSettings({
+    ...settings,
+    provider: 'deepseek',
+    apiKey: envKey,
+  });
+}
+
+function migrateDeepSeekSettings(settings: LlmSettings): LlmSettings {
+  if (settings.provider !== 'deepseek') {
+    return settings;
+  }
+
+  if (settings.correctionModel?.trim() !== LEGACY_DEEPSEEK_CORRECTION_MODEL) {
     return settings;
   }
 
   return {
     ...settings,
-    provider: 'deepseek',
-    apiKey: envKey,
+    correctionModel: DEFAULT_DEEPSEEK_MODEL,
   };
 }
 

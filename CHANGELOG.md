@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.4 - 2026-06-17
+
+- Disabled DeepSeek thinking for translation/correction calls and moved DeepSeek correction defaults to `deepseek-v4-flash`.
+- Honored the UI-selected DeepSeek translation model when using an environment API key fallback.
+- Fixed media-file start validation so Start is disabled until a file is selected and stale warnings clear when changing sources.
+- Stopped session duration, capture, pending caption updates, and TTS playback on pause/stop.
+- Added a live-caption clear button and made captions manually scrollable while paused or stopped.
+
 ## 0.3.3 - 2026-06-07
 
 - Made the subtitle list scroll independently while the header and control bar stay fixed.

@@ -108,6 +108,7 @@ export class PipelineImpl implements Pipeline {
 
   private running = false;
   private paused = false;
+  private activityVersion = 0;
   private resumeWaiters: Array<() => void> = [];
   private showSourceText = false;
   private audioSourceKind: AudioSourceKind = 'file';
@@ -154,6 +155,7 @@ export class PipelineImpl implements Pipeline {
 
     this.running = true;
     this.paused = false;
+    this.activityVersion += 1;
     this.resumeWaiters = [];
     this.showSourceText = options.showSourceText ?? false;
     this.audioSourceKind = options.selection.kind;
@@ -189,6 +191,10 @@ export class PipelineImpl implements Pipeline {
       }
     });
     this.unsubscribeCorrection = this.correctionEngine.onRevision((segment) => {
+      if (!this.running || this.paused) {
+        return;
+      }
+
       this.transcriptStore.applyCorrection(segment);
       this.emitSubtitle(segment, this.capturedAtBySegment.get(segment.id) ?? this.now());
     });
@@ -217,6 +223,9 @@ export class PipelineImpl implements Pipeline {
     }
 
     this.paused = true;
+    this.activityVersion += 1;
+    this.synthesizer.stop();
+    this.sourceMonitor?.stop();
     await this.ingestor.pause();
   }
 
@@ -226,6 +235,7 @@ export class PipelineImpl implements Pipeline {
     }
 
     this.paused = false;
+    this.activityVersion += 1;
     this.releaseResumeWaiters();
     await this.ingestor.resume();
   }
@@ -241,8 +251,10 @@ export class PipelineImpl implements Pipeline {
 
     this.running = false;
     this.paused = false;
+    this.activityVersion += 1;
     this.releaseResumeWaiters();
     this.sourceMonitor?.stop();
+    this.synthesizer.stop();
     await this.ingestor.stop();
     this.recognizer.flush();
     this.frameQueue.clear();
@@ -339,10 +351,11 @@ export class PipelineImpl implements Pipeline {
   }
 
   private async handleSourceSegment(segment: SourceSegment): Promise<void> {
+    const activityVersion = this.activityVersion;
     this.capturedAtBySegment.set(segment.id, segment.startedAt);
 
     if (segment.status === 'partial') {
-      if (!this.shouldEmitPartial(segment.id)) {
+      if (!this.isActivityActive(activityVersion) || !this.shouldEmitPartial(segment.id)) {
         return;
       }
 
@@ -351,9 +364,17 @@ export class PipelineImpl implements Pipeline {
     }
 
     const zh = await this.translator.translateFinal(segment, { entries: this.contextEntries });
+    if (!this.isActivityActive(activityVersion)) {
+      return;
+    }
+
     await this.emitSubtitleWithSideEffects(zh, segment.startedAt);
 
     const revisions = await this.correctionEngine.handleSourceSegment(segment, this.now());
+    if (!this.isActivityActive(activityVersion)) {
+      return;
+    }
+
     for (const revision of revisions) {
       this.transcriptStore.applyCorrection(revision);
       await this.emitSubtitleWithSideEffects(revision, segment.startedAt);
@@ -405,6 +426,10 @@ export class PipelineImpl implements Pipeline {
     for (const handler of this.subtitleHandlers) {
       handler({ segment, capturedAt });
     }
+  }
+
+  private isActivityActive(activityVersion: number): boolean {
+    return this.running && !this.paused && activityVersion === this.activityVersion;
   }
 
   private shouldEmitPartial(segmentId: string): boolean {

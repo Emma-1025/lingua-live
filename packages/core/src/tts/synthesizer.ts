@@ -15,6 +15,7 @@ export interface AudioSynthesizer {
   setVolume(level: number): void;
   getVolume(): number;
   enqueue(segment: ZhSegment): void;
+  stop(): void;
   onSynthFailure(handler: (segmentId: string) => void): () => void;
   onPlaybackStateChange(handler: (playing: boolean) => void): () => void;
 }
@@ -94,6 +95,10 @@ export class MockAudioSynthesizer implements AudioSynthesizer {
     this.queue.push({ segment });
     this.queue.sort((left, right) => left.segment.spokenIndex - right.segment.spokenIndex);
     this.scheduleProcessQueue();
+  }
+
+  stop(): void {
+    this.stopActivePlayback();
   }
 
   onSynthFailure(handler: SynthFailureHandler): () => void {

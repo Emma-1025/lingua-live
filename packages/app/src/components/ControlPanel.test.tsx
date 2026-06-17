@@ -92,4 +92,43 @@ describe('ControlPanel', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('未找到系统声音监视设备');
   });
+
+  it('can disable start independently of session state', () => {
+    render(
+      <ControlPanel
+        sessionState="stopped"
+        latencyWarning={false}
+        startDisabled
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        onOpenSettings={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '开始' })).toBeDisabled();
+  });
+
+  it('dismisses start errors when requested', async () => {
+    const user = userEvent.setup();
+    const onDismissStartError = vi.fn();
+
+    render(
+      <ControlPanel
+        sessionState="stopped"
+        latencyWarning={false}
+        startError="请选择媒体文件"
+        onStart={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onStop={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onDismissStartError={onDismissStartError}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '清除' }));
+    expect(onDismissStartError).toHaveBeenCalledTimes(1);
+  });
 });

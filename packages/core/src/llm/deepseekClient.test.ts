@@ -71,10 +71,30 @@ describe('DeepSeekClientImpl', () => {
           model: 'deepseek-v4-flash',
           stream: true,
           temperature: 0.3,
+          thinking: { type: 'disabled' },
           messages: [{ role: 'user', content: 'hello' }],
         }),
       }),
     );
+  });
+
+  it('does not send DeepSeek thinking options to other OpenAI-compatible hosts', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse({
+        choices: [{ message: { content: 'hello' } }],
+      }),
+    );
+
+    const client = new DeepSeekClientImpl({
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+      fetchFn,
+    });
+
+    await client.chatCompletion([{ role: 'user', content: 'hello' }]);
+
+    const body = JSON.parse(fetchFn.mock.calls[0][1].body as string) as Record<string, unknown>;
+    expect(body).not.toHaveProperty('thinking');
   });
 
   it('returns non-streaming chat completion text', async () => {

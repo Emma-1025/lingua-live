@@ -123,9 +123,21 @@ export function createLlmClientWithEnvFallback(
     return createMockDeepSeekClient();
   }
 
+  const model =
+    settings.provider === 'deepseek'
+      ? (resolveModel(settings, role) ??
+        (role === 'translation' ? DEFAULT_DEEPSEEK_MODEL : DEFAULT_CORRECTION_MODEL))
+      : role === 'translation'
+        ? DEFAULT_DEEPSEEK_MODEL
+        : DEFAULT_CORRECTION_MODEL;
+  const baseUrl =
+    settings.provider === 'deepseek'
+      ? settings.baseUrl?.trim() || DEFAULT_DEEPSEEK_BASE_URL
+      : DEFAULT_DEEPSEEK_BASE_URL;
+
   return createDeepSeekClientIfConfigured({
-    model:
-      role === 'translation' ? DEFAULT_DEEPSEEK_MODEL : DEFAULT_CORRECTION_MODEL,
+    baseUrl,
+    model,
     fetchFn: options?.fetchFn,
   });
 }

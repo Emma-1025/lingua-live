@@ -184,12 +184,14 @@ export function useInterpretationSession() {
   const linesMapRef = useRef(new Map<string, DisplaySubtitleLine>());
   const sessionIdRef = useRef(createSessionId());
   const sessionStartedAtRef = useRef<number | null>(null);
+  const accumulatedDurationMsRef = useRef(0);
 
   const [lines, setLines] = useState<DisplaySubtitleLine[]>([]);
   const [sessionState, setSessionState] = useState<SessionState>('stopped');
+  const [durationMs, setDurationMs] = useState(0);
   const [latencyWarning, setLatencyWarning] = useState(false);
   const [settings, setSettings] = useState<SessionSettings>(DEFAULT_UI_SETTINGS);
-  const [sourceKind, setSourceKind] = useState<AudioSourceKind>('file');
+  const [sourceKind, setSourceKindState] = useState<AudioSourceKind>('file');
   const [filePath, setFilePathState] = useState('');
   const [selectedMediaFile, setSelectedMediaFileInfo] =
     useState<SelectedMediaFileInfo | null>(null);
@@ -211,6 +213,46 @@ export function useInterpretationSession() {
 
   const refreshLines = useCallback(() => {
     setLines(toSortedSubtitleLines(linesMapRef.current));
+  }, []);
+
+  const refreshDuration = useCallback(() => {
+    const startedAt = sessionStartedAtRef.current;
+    setDurationMs(
+      startedAt === null
+        ? accumulatedDurationMsRef.current
+        : accumulatedDurationMsRef.current + Date.now() - startedAt,
+    );
+  }, []);
+
+  const startDuration = useCallback(() => {
+    accumulatedDurationMsRef.current = 0;
+    sessionStartedAtRef.current = Date.now();
+    setDurationMs(0);
+  }, []);
+
+  const pauseDuration = useCallback(() => {
+    const startedAt = sessionStartedAtRef.current;
+    if (startedAt !== null) {
+      accumulatedDurationMsRef.current += Date.now() - startedAt;
+      sessionStartedAtRef.current = null;
+    }
+    setDurationMs(accumulatedDurationMsRef.current);
+  }, []);
+
+  const resumeDuration = useCallback(() => {
+    sessionStartedAtRef.current = Date.now();
+    setDurationMs(accumulatedDurationMsRef.current);
+  }, []);
+
+  const resetDuration = useCallback(() => {
+    accumulatedDurationMsRef.current = 0;
+    sessionStartedAtRef.current = null;
+    setDurationMs(0);
+  }, []);
+
+  const clearStartWarning = useCallback(() => {
+    setStartError(undefined);
+    setUnavailableControl(null);
   }, []);
 
   useEffect(() => {
@@ -265,9 +307,10 @@ export function useInterpretationSession() {
     const interval = globalThis.setInterval(() => {
       setHighlightTick((value) => value + 1);
       refreshLines();
+      refreshDuration();
     }, 250);
     return () => globalThis.clearInterval(interval);
-  }, [refreshLines, settingsOpen]);
+  }, [refreshDuration, refreshLines, settingsOpen]);
 
   useEffect(() => {
     vendorParts.recognizer.setLanguage(sourceLanguage);
@@ -283,12 +326,21 @@ export function useInterpretationSession() {
     setConsentOpen(false);
   }, []);
 
+  const setSourceKind = useCallback(
+    (nextSourceKind: AudioSourceKind) => {
+      setSourceKindState(nextSourceKind);
+      clearStartWarning();
+    },
+    [clearStartWarning],
+  );
+
   const setFilePath = useCallback((nextFilePath: string) => {
     selectedMediaFileRef.current = null;
     selectedMediaFilePathRef.current = '';
     setSelectedMediaFileInfo(null);
     setFilePathState(nextFilePath);
-  }, []);
+    clearStartWarning();
+  }, [clearStartWarning]);
 
   const setMediaFile = useCallback((file: File | null) => {
     if (!file) {
@@ -296,6 +348,7 @@ export function useInterpretationSession() {
       selectedMediaFilePathRef.current = '';
       setSelectedMediaFileInfo(null);
       setFilePathState('');
+      clearStartWarning();
       return;
     }
 
@@ -309,9 +362,9 @@ export function useInterpretationSession() {
       lastModified: file.lastModified,
     });
     setFilePathState(nextFilePath);
-    setSourceKind('file');
-    setStartError(undefined);
-  }, []);
+    setSourceKindState('file');
+    clearStartWarning();
+  }, [clearStartWarning]);
 
   const start = useCallback(async () => {
     if (consentOpen) {
@@ -322,6 +375,7 @@ export function useInterpretationSession() {
     setStartError(undefined);
     setExportError(undefined);
     setExportNotice(undefined);
+    setLatencyWarning(false);
 
     if (!ingestorReady && sourceKind !== 'file') {
       setStartError('音频设备仍在初始化，请稍后再试。');
@@ -349,10 +403,16 @@ export function useInterpretationSession() {
       return;
     }
 
+    const hasAudioSource = sourceKind === 'file' ? filePath.trim().length > 0 : true;
+    if (!hasAudioSource) {
+      setStartError('请先选择媒体文件，或切换到系统声音/麦克风。');
+      return;
+    }
+
     linesMapRef.current.clear();
     refreshLines();
     sessionIdRef.current = createSessionId();
-    sessionStartedAtRef.current = Date.now();
+    startDuration();
 
     const selection =
       sourceKind === 'file'
@@ -361,12 +421,12 @@ export function useInterpretationSession() {
           ? { kind: 'system' as const, deviceId: 'system:default' }
           : { kind: 'microphone' as const, deviceId: 'microphone:default' };
 
-    const hasAudioSource = sourceKind === 'file' ? filePath.trim().length > 0 : true;
     const transition = sessionManager.start({ hasAudioSource });
     if (!transition.ok) {
       if (transition.reason === 'no_audio_source') {
         setStartError('请先选择媒体文件，或切换到系统声音/麦克风。');
       }
+      resetDuration();
       return;
     }
 
@@ -379,6 +439,7 @@ export function useInterpretationSession() {
     } catch (error) {
       await pipeline.stop();
       sessionManager.stop();
+      resetDuration();
       setStartError(formatStartError(error, sourceKind, isDesktop));
     }
   }, [
@@ -390,9 +451,11 @@ export function useInterpretationSession() {
     nativeSourceAvailability.system,
     pipeline,
     refreshLines,
+    resetDuration,
     sessionManager,
     settings.showSourceText,
     sourceKind,
+    startDuration,
     vendorParts.setupError,
   ]);
 
@@ -403,8 +466,10 @@ export function useInterpretationSession() {
       return;
     }
 
+    pauseDuration();
+    setLatencyWarning(false);
     await pipeline.pause();
-  }, [pipeline, sessionManager]);
+  }, [pauseDuration, pipeline, sessionManager]);
 
   const resume = useCallback(async () => {
     setUnavailableControl(null);
@@ -413,19 +478,26 @@ export function useInterpretationSession() {
       return;
     }
 
+    resumeDuration();
     await pipeline.resume();
-  }, [pipeline, sessionManager]);
+  }, [pipeline, resumeDuration, sessionManager]);
 
   const stop = useCallback(async () => {
     setUnavailableControl(null);
+    const transition = sessionManager.stop();
+    if (!transition.ok) {
+      return;
+    }
+
+    pauseDuration();
+    setLatencyWarning(false);
     await pipeline.stop();
     const store = pipeline.getTranscriptStore();
     stoppedTranscriptStoreRef.current = store;
     setStoppedTranscriptCount(store.getEntries().length);
     setStoppedCanExport(store.canExport());
-    sessionManager.stop();
     setStopDialogOpen(true);
-  }, [pipeline, sessionManager]);
+  }, [pauseDuration, pipeline, sessionManager]);
 
   const closeStopDialog = useCallback(() => {
     setStopDialogOpen(false);
@@ -436,6 +508,15 @@ export function useInterpretationSession() {
   const closeSettings = useCallback(() => {
     setSettingsOpen(false);
   }, []);
+
+  const clearCaptions = useCallback(() => {
+    linesMapRef.current.clear();
+    refreshLines();
+  }, [refreshLines]);
+
+  const dismissStartError = useCallback(() => {
+    clearStartWarning();
+  }, [clearStartWarning]);
 
   const exportTranscript = useCallback(async () => {
     const store = stoppedTranscriptStoreRef.current ?? pipeline.getTranscriptStore();
@@ -460,8 +541,7 @@ export function useInterpretationSession() {
     setExportNotice(result.path ? `已保存到 ${result.path}` : '导出成功');
   }, [pipeline]);
 
-  const durationMs =
-    sessionStartedAtRef.current === null ? 0 : Date.now() - sessionStartedAtRef.current;
+  const hasSelectedAudioSource = sourceKind !== 'file' || filePath.trim().length > 0;
 
   return {
     lines,
@@ -487,13 +567,16 @@ export function useInterpretationSession() {
     settingsOpen,
     setSettingsOpen,
     closeSettings,
+    clearCaptions,
     stopDialogOpen,
     exportError,
     exportNotice,
     startError,
     consentOpen,
     unavailableControl,
+    canStart: hasSelectedAudioSource,
     acceptConsent,
+    dismissStartError,
     start,
     pause,
     resume,

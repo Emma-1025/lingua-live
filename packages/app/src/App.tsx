@@ -73,6 +73,8 @@ export function App() {
             lines={session.lines}
             showSourceText={session.settings.showSourceText}
             fontSizeLevel={session.settings.fontSizeLevel}
+            autoScroll={session.sessionState === 'capturing'}
+            onClear={session.clearCaptions}
           />
         </div>
 
@@ -118,11 +120,13 @@ export function App() {
         latencyWarning={session.latencyWarning}
         unavailableControl={session.unavailableControl}
         startError={session.startError}
+        startDisabled={!session.canStart}
         onStart={() => void session.start()}
         onPause={session.pause}
         onResume={session.resume}
         onStop={() => void session.stop()}
         onOpenSettings={() => session.setSettingsOpen(true)}
+        onDismissStartError={session.dismissStartError}
       />
 
       <SettingsPanel

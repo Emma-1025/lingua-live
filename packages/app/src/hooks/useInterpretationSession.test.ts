@@ -8,6 +8,7 @@ const synthesizer = {
   isEnabled: vi.fn(() => false),
   getVolume: vi.fn(() => 5),
   enqueue: vi.fn(),
+  stop: vi.fn(),
   onSynthFailure: vi.fn(() => () => {}),
   onPlaybackStateChange: vi.fn(() => () => {}),
 };
@@ -75,6 +76,7 @@ describe('useInterpretationSession audio wiring', () => {
     pipelineStart.mockResolvedValue(undefined);
     pipelinePause.mockClear();
     pipelineResume.mockClear();
+    synthesizer.stop.mockClear();
     globalThis.localStorage?.setItem('lingua-live-consent-v1', 'accepted');
   });
 
@@ -142,6 +144,37 @@ describe('useInterpretationSession audio wiring', () => {
         },
       }),
     );
+  });
+
+  it('blocks start when media source has no selected file without sticking controls', async () => {
+    const { result } = renderHook(() => useInterpretationSession());
+
+    expect(result.current.sourceKind).toBe('file');
+    expect(result.current.canStart).toBe(false);
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(pipelineStart).not.toHaveBeenCalled();
+    expect(result.current.startError).toBe('请先选择媒体文件，或切换到系统声音/麦克风。');
+    expect(result.current.unavailableControl).toBeNull();
+  });
+
+  it('clears start warnings when the source changes', async () => {
+    const { result } = renderHook(() => useInterpretationSession());
+
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.startError).toBeTruthy();
+
+    act(() => {
+      result.current.setSourceKind('system');
+    });
+
+    expect(result.current.startError).toBeUndefined();
+    expect(result.current.unavailableControl).toBeNull();
   });
 
   it('blocks system audio before native capture when no monitor source is available', async () => {

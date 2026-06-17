@@ -83,6 +83,10 @@ export class RealAudioSynthesizer implements AudioSynthesizer {
     this.scheduleProcessQueue();
   }
 
+  stop(): void {
+    this.stopActivePlayback();
+  }
+
   onSynthFailure(handler: SynthFailureHandler): () => void {
     this.failureHandlers.add(handler);
     return () => {

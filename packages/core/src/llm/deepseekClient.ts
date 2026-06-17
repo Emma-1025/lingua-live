@@ -19,6 +19,7 @@ export interface DeepSeekClientConfig {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
+  thinkingMode?: DeepSeekThinkingMode;
   temperature?: number;
   timeoutMs?: number;
   maxRetries?: number;
@@ -30,6 +31,8 @@ export interface DeepSeekClient {
   streamChatCompletion(messages: ChatMessage[]): AsyncIterable<string>;
   chatCompletion(messages: ChatMessage[]): Promise<string>;
 }
+
+export type DeepSeekThinkingMode = 'enabled' | 'disabled';
 
 type FetchFn = typeof fetch;
 
@@ -55,6 +58,7 @@ export class DeepSeekClientImpl implements DeepSeekClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly model: string;
+  private readonly thinkingMode: DeepSeekThinkingMode | undefined;
   private readonly temperature: number;
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
@@ -71,6 +75,7 @@ export class DeepSeekClientImpl implements DeepSeekClient {
     this.apiKey = config.apiKey ?? readApiKeyFromEnv();
     this.baseUrl = (config.baseUrl ?? DEFAULT_DEEPSEEK_BASE_URL).replace(/\/$/, '');
     this.model = config.model ?? DEFAULT_DEEPSEEK_MODEL;
+    this.thinkingMode = config.thinkingMode ?? resolveDefaultThinkingMode(this.baseUrl);
     this.temperature = config.temperature ?? DEFAULT_DEEPSEEK_TEMPERATURE;
     this.timeoutMs = config.timeoutMs ?? DEFAULT_DEEPSEEK_TIMEOUT_MS;
     this.maxRetries = config.maxRetries ?? DEFAULT_DEEPSEEK_MAX_RETRIES;
@@ -81,12 +86,12 @@ export class DeepSeekClientImpl implements DeepSeekClient {
   }
 
   async *streamChatCompletion(messages: ChatMessage[]): AsyncIterable<string> {
-    const response = await this.requestWithRetry('/chat/completions', {
+    const response = await this.requestWithRetry('/chat/completions', this.withThinkingMode({
       model: this.model,
       stream: true,
       temperature: this.temperature,
       messages,
-    });
+    }));
 
     if (!response.body) {
       throw new DeepSeekApiError('DeepSeek stream response has no body', response.status);
@@ -130,12 +135,12 @@ export class DeepSeekClientImpl implements DeepSeekClient {
   }
 
   async chatCompletion(messages: ChatMessage[]): Promise<string> {
-    const response = await this.requestWithRetry('/chat/completions', {
+    const response = await this.requestWithRetry('/chat/completions', this.withThinkingMode({
       model: this.model,
       stream: false,
       temperature: this.temperature,
       messages,
-    });
+    }));
 
     const payload = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
@@ -205,6 +210,17 @@ export class DeepSeekClientImpl implements DeepSeekClient {
       this.cancelSchedule(timeoutHandle);
     }
   }
+
+  private withThinkingMode(body: Record<string, unknown>): Record<string, unknown> {
+    if (!this.thinkingMode) {
+      return body;
+    }
+
+    return {
+      ...body,
+      thinking: { type: this.thinkingMode },
+    };
+  }
 }
 
 export function createDeepSeekClient(config: DeepSeekClientConfig = {}): DeepSeekClient {
@@ -256,6 +272,17 @@ function extractStreamToken(payload: string): string | undefined {
     };
     const content = parsed.choices?.[0]?.delta?.content;
     return typeof content === 'string' && content.length > 0 ? content : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveDefaultThinkingMode(baseUrl: string): DeepSeekThinkingMode | undefined {
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    return hostname === 'api.deepseek.com' || hostname.endsWith('.deepseek.com')
+      ? 'disabled'
+      : undefined;
   } catch {
     return undefined;
   }

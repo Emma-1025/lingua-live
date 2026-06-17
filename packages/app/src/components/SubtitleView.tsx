@@ -5,6 +5,8 @@ export interface SubtitleViewProps {
   lines: DisplaySubtitleLine[];
   showSourceText: boolean;
   fontSizeLevel: 1 | 2 | 3;
+  autoScroll?: boolean;
+  onClear?: () => void;
 }
 
 const FONT_SIZE_CLASS: Record<1 | 2 | 3, string> = {
@@ -13,7 +15,13 @@ const FONT_SIZE_CLASS: Record<1 | 2 | 3, string> = {
   3: 'subtitle-view--font-lg',
 };
 
-export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleViewProps) {
+export function SubtitleView({
+  lines,
+  showSourceText,
+  fontSizeLevel,
+  autoScroll = true,
+  onClear,
+}: SubtitleViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const announcedFinalsRef = useRef(new Set<string>());
   const [finalAnnouncement, setFinalAnnouncement] = useState('');
@@ -21,13 +29,17 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
   const partialCount = lines.length - finalCount;
 
   useEffect(() => {
+    if (!autoScroll) {
+      return;
+    }
+
     const container = scrollRef.current;
     if (!container) {
       return;
     }
 
     container.scrollTop = container.scrollHeight;
-  }, [lines, showSourceText, fontSizeLevel]);
+  }, [autoScroll, lines, showSourceText, fontSizeLevel]);
 
   useEffect(() => {
     for (const line of lines) {
@@ -47,16 +59,28 @@ export function SubtitleView({ lines, showSourceText, fontSizeLevel }: SubtitleV
           <p className="subtitle-view__eyebrow">Live Captions</p>
           <h2>实时字幕</h2>
         </div>
-        <dl className="subtitle-view__metrics" aria-label="字幕统计">
-          <div>
-            <dt>已确认</dt>
-            <dd>{finalCount}</dd>
-          </div>
-          <div>
-            <dt>识别中</dt>
-            <dd>{partialCount}</dd>
-          </div>
-        </dl>
+        <div className="subtitle-view__header-actions">
+          <dl className="subtitle-view__metrics" aria-label="字幕统计">
+            <div>
+              <dt>已确认</dt>
+              <dd>{finalCount}</dd>
+            </div>
+            <div>
+              <dt>识别中</dt>
+              <dd>{partialCount}</dd>
+            </div>
+          </dl>
+          {onClear ? (
+            <button
+              type="button"
+              className="subtitle-view__clear"
+              onClick={onClear}
+              disabled={lines.length === 0}
+            >
+              清空
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <div className="sr-only" aria-live="assertive" aria-atomic="true">

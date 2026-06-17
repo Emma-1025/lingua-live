@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import type { DisplaySubtitleLine } from '../lib/subtitleState.js';
 import { SubtitleView } from './SubtitleView.js';
 
@@ -40,6 +41,22 @@ describe('SubtitleView', () => {
     render(<SubtitleView lines={sampleLines} showSourceText fontSizeLevel={2} />);
     expect(screen.getByText('hello')).toBeInTheDocument();
     expect(screen.getByText('world')).toBeInTheDocument();
+  });
+
+  it('calls onClear from the clear captions button', async () => {
+    const user = userEvent.setup();
+    const onClear = vi.fn();
+    render(
+      <SubtitleView
+        lines={sampleLines}
+        showSourceText={false}
+        fontSizeLevel={2}
+        onClear={onClear}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '清空' }));
+    expect(onClear).toHaveBeenCalledTimes(1);
   });
 
   it('does not show the untranslated badge on partial lines', () => {

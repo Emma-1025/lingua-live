@@ -401,8 +401,17 @@ input[type='range'] {
   letter-spacing: -0.03em;
 }
 
+.subtitle-view__header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
 .subtitle-view__metrics {
   display: flex;
+  flex: 1 1 auto;
   gap: 0.6rem;
   margin: 0;
 }
@@ -423,6 +432,15 @@ input[type='range'] {
 
 .subtitle-view__metrics dd {
   margin: 0.1rem 0 0;
+  font-weight: 800;
+}
+
+.subtitle-view__clear {
+  flex: 0 0 auto;
+  padding: 0.56rem 0.75rem;
+  border-radius: 12px;
+  color: #d8e3ff;
+  font-size: 0.86rem;
   font-weight: 800;
 }
 
@@ -666,6 +684,25 @@ input[type='range'] {
   background: rgba(255, 107, 107, 0.12);
   color: #ffc2c2;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.control-panel__error p {
+  flex: 1;
+  margin: 0;
+}
+
+.control-panel__error-dismiss {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.65rem;
+  border-color: rgba(255, 194, 194, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffe1e1;
+  font-size: 0.82rem;
+  font-weight: 800;
 }
 
 .control-panel__actions {
@@ -699,6 +736,7 @@ input[type='range'] {
 }
 
 .control-panel__actions button:focus-visible,
+.subtitle-view button:focus-visible,
 .settings-panel button:focus-visible,
 .settings-panel input:focus-visible,
 .settings-panel select:focus-visible,
@@ -1014,6 +1052,11 @@ fieldset.settings-panel__section {
   }
 
   .subtitle-view__metrics {
+    width: 100%;
+  }
+
+  .subtitle-view__header-actions {
+    align-items: stretch;
     width: 100%;
   }
 
