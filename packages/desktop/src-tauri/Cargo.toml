@@ -1,6 +1,6 @@
 [package]
 name = "lingua-live-desktop"
-version = "0.3.4"
+version = "0.3.5"
 description = "LinguaLive desktop shell"
 authors = ["LinguaLive"]
 edition = "2021"

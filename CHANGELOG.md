@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5 - 2026-06-17
+
+- Reissued the desktop release after fixing DeepSeek request test assertions in CI.
+- Includes the DeepSeek speed, session-control, and live-caption improvements from `0.3.4`.
+
 ## 0.3.4 - 2026-06-17
 
 - Disabled DeepSeek thinking for translation/correction calls and moved DeepSeek correction defaults to `deepseek-v4-flash`.
